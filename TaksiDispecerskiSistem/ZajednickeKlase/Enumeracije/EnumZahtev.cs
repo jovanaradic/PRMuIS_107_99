@@ -6,7 +6,10 @@ using System.Threading.Tasks;
 
 namespace ZajednickeKlase.Enumeracije
 {
-    internal class EnumZahtev
+    public enum StatusZahteva
     {
+        Cekanje,
+        Prihvaceno,
+        Zavrseno
     }
 }
