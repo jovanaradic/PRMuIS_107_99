@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace ZajednickeKlase.Enumeracije
 {
-    internal class EnumZadatak
+    public enum StatusZadatka
     {
+        Aktivan,
+        Zavrsen
     }
 }
