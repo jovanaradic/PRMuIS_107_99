@@ -6,7 +6,10 @@ using System.Threading.Tasks;
 
 namespace ZajednickeKlase.Enumeracije
 {
-    internal class EnumVozilo
+    public enum StatusVozila
     {
+        Slobodno,
+        NaPutu,
+        UVoznji
     }
 }
