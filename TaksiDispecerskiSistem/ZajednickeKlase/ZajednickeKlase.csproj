@@ -47,6 +47,7 @@
     <Compile Include="Enumeracije\EnumZahtev.cs" />
     <Compile Include="Modeli\KlijentModel.cs" />
     <Compile Include="Modeli\Koordinata.cs" />
+    <Compile Include="Modeli\TaksiVoziloModel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup />
