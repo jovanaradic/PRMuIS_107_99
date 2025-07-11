@@ -49,6 +49,7 @@
     <Compile Include="Modeli\Koordinata.cs" />
     <Compile Include="Modeli\StatusVoznje.cs" />
     <Compile Include="Modeli\TaksiVoziloModel.cs" />
+    <Compile Include="Modeli\ZadatakModel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup />
