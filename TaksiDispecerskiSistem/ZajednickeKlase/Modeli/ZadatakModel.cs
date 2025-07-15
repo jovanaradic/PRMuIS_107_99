@@ -11,18 +11,24 @@ namespace ZajednickeKlase.Modeli
 
     public class ZadatakModel
     {
+        public int ID { get; set; }
+
         public int IDKlijenta { get; set; }
         public int IDVozila { get; set; }
 
-        public StatusZadatka StatusVozila { get; set; } = StatusZadatka.Aktivan;
+        public Koordinata pozicijaKlijenta { get; set; }
+
+        public Koordinata zeljenaPozicija {  get; set; }
+
+        public StatusZadatka StatusZadatka { get; set; } = StatusZadatka.Aktivan;
 
         public double PredjenaRazdaljina { get; set; }
 
-        public ZadatakModel(int iDKlijenta, int iDVozila, StatusZadatka statusVozila, double predjenaRazdaljina)
+        public ZadatakModel(int iDKlijenta, int iDVozila, StatusZadatka statusZadatka, double predjenaRazdaljina)
         {
             IDKlijenta = iDKlijenta;
             IDVozila = iDVozila;
-            StatusVozila = statusVozila;
+            StatusZadatka = statusZadatka;
             PredjenaRazdaljina = predjenaRazdaljina;
         }
 
