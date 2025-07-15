@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ZajednickeKlase.Modeli;
 using ZajednickeKlase.Enumeracije;
+using System.Threading;
 
 namespace TaksiVozilo
 {
@@ -29,6 +30,7 @@ namespace TaksiVozilo
 
             TaksiVoziloModel vozilo = new TaksiVoziloModel
             {
+                Id = id,
                 koordinataX = lokacija.X,
                 koordinataY = lokacija.Y,
                 Status = StatusVozila.Slobodno
@@ -36,7 +38,7 @@ namespace TaksiVozilo
 
             byte[] bufferStatusVoznje = new byte[1024];
 
-            //slanje statusa voznje serveru
+            //slanje vozila serveru - zahtev za konekciju
             using (MemoryStream ms = new MemoryStream())
             {
                 BinaryFormatter bf = new BinaryFormatter();
@@ -59,6 +61,7 @@ namespace TaksiVozilo
 
                     using (MemoryStream ms = new MemoryStream(bufferZadatak, 0, velicinaZadatka))
                     {
+                        //prima zadatak od servera
                         BinaryFormatter bf = new BinaryFormatter();
                         zadatak = bf.Deserialize(ms) as ZadatakModel;
 
@@ -67,14 +70,14 @@ namespace TaksiVozilo
                     {
 
                         Console.WriteLine($"Nova voznja → klijent {zadatak.IDKlijenta}, {zadatak.PredjenaRazdaljina:F1} km");
-                        vozilo.Status = StatusVozila.NaPutu;
 
-                        // SIMULACIJA KRETANJA -> u simulaciji saljem vozilo
+                        vozilo.Status = StatusVozila.NaPutu;
+                        PosaljiVozilo(clientSocketTCP, serverEP, vozilo);
+                        SimulirajKretanje(vozilo, zadatak.pozicijaKlijenta, clientSocketTCP, serverEP);
 
                         vozilo.Status = StatusVozila.UVoznji;
-
-                        // SIMULACIJA KRETANJA
-
+                        PosaljiVozilo(clientSocketTCP, serverEP, vozilo);
+                        SimulirajKretanje(vozilo, zadatak.zeljenaPozicija, clientSocketTCP, serverEP);
 
                         StatusVoznje status = new StatusVoznje
                         {
@@ -83,21 +86,25 @@ namespace TaksiVozilo
                             Km = zadatak.PredjenaRazdaljina,
                             CenaVoznje = zadatak.PredjenaRazdaljina * 0.8
                         };
-
-
-                        //saljem status StatusVoznje -> ridefinisher
+                        //salje se status voznje pri zavrsetku
+                        byte[] buffer = new byte[1024];
+                        using (MemoryStream ms = new MemoryStream())
+                        {
+                            BinaryFormatter bf = new BinaryFormatter();
+                            bf.Serialize(ms, status);
+                            buffer = ms.ToArray();
+                            clientSocketTCP.Send(buffer);
+                        }
 
                         vozilo.Status = StatusVozila.Slobodno;
-
-                        //saljem vozilo
+                        //kako bi se u serveru promijenilo stanje na slobodno
+                        PosaljiVozilo(clientSocketTCP, serverEP, vozilo);
                     }
                     else
                     {
                         Console.WriteLine("Veza sa serverom prekinuta!");
                         break;
                     }
-
-
                 }
 
                 catch (SocketException ex)
@@ -109,7 +116,37 @@ namespace TaksiVozilo
             Console.WriteLine("Klijent zavrsava sa radom");
             Console.ReadKey();
             clientSocketTCP.Close();
+        }
 
+        private static void SimulirajKretanje(TaksiVoziloModel vozilo, Koordinata cilj, Socket socket, EndPoint serverEP)
+        {
+            while (vozilo.koordinataX != cilj.X || vozilo.koordinataY != cilj.Y)
+            {
+                if (vozilo.koordinataX < cilj.X)
+                    vozilo.koordinataX++;
+                else if (vozilo.koordinataX > cilj.X)
+                    vozilo.koordinataX--;
+
+                if (vozilo.koordinataY < cilj.Y)
+                    vozilo.koordinataY++;
+                else if (vozilo.koordinataY > cilj.Y)
+                    vozilo.koordinataY--;
+
+                PosaljiVozilo(socket, serverEP, vozilo);
+                Thread.Sleep(800); // pauza da se kretanje vidi (0.3 sekunde po koraku)
+            }
+        }
+
+        private static void PosaljiVozilo(Socket socket, EndPoint serverEP, TaksiVoziloModel vozilo)
+        {
+            byte[] buffer = new byte[1024];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                bf.Serialize(ms, vozilo);
+                buffer = ms.ToArray();
+                socket.Send(buffer);
+            }
         }
     }
 }
