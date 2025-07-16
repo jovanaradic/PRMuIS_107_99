@@ -53,13 +53,13 @@ namespace Klijent
                         string[] delovi = unos.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
                         if (delovi.Length == 2 &&
-                            int.TryParse(delovi[0], out int x) && x >= 0 && x < 30 &&
-                            int.TryParse(delovi[1], out int y) && y >= 0 && y < 30)
+                            int.TryParse(delovi[0], out int x) && x >= 0 && x < 20 &&
+                            int.TryParse(delovi[1], out int y) && y >= 0 && y < 20)
                         {
                             pocetna = new Koordinata(x, y);
                             break;
                         }
-                        Console.WriteLine("GREŠKA: Unesite koordinate u formatu: X Y (razdvojeno razmakom, brojevi 0–29).");
+                        Console.WriteLine("GREŠKA: Unesite koordinate u formatu: X Y (razdvojeno razmakom, brojevi 0–19).");
                     }
 
                     while (true)
@@ -70,13 +70,13 @@ namespace Klijent
                         string[] delovi = unos.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
                         if (delovi.Length == 2 &&
-                            int.TryParse(delovi[0], out int x) && x >= 0 && x < 30 &&
-                            int.TryParse(delovi[1], out int y) && y >= 0 && y < 30)
+                            int.TryParse(delovi[0], out int x) && x >= 0 && x < 20 &&
+                            int.TryParse(delovi[1], out int y) && y >= 0 && y < 20)
                         {
                             krajnja = new Koordinata(x, y);
                             break;
                         }
-                        Console.WriteLine("GREŠKA: Unesite koordinate u formatu: X Y (razdvojeno razmakom, brojevi 0–29).");
+                        Console.WriteLine("GREŠKA: Unesite koordinate u formatu: X Y (razdvojeno razmakom, brojevi 0–19).");
                     }
 
                     if(pocetna.X == krajnja.X && pocetna.Y == krajnja.Y)

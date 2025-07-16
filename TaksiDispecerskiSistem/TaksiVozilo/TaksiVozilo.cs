@@ -30,7 +30,7 @@ namespace TaksiVozilo
             }
 
             Random r = new Random();
-            Koordinata lokacija = new Koordinata(r.Next(0, 29), r.Next(0, 29));
+            Koordinata lokacija = new Koordinata(r.Next(0, 19), r.Next(0, 19));
 
             Socket clientSocketTCP = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint serverEP = new IPEndPoint(IPAddress.Loopback, 50000);
