@@ -24,39 +24,45 @@ namespace Server
             IPEndPoint serverEPTCP = new IPEndPoint(IPAddress.Any, 50000);
             serverSocketTCP.Bind(serverEPTCP);
             serverSocketTCP.Blocking = false;
-            int maxKlijenata = 10; // da li ostavljamo ovako?
+            int maxKlijenata = 10;
             serverSocketTCP.Listen(maxKlijenata);
-
 
             //UDP - klijent
             Socket serverSocketUDP = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            //UDP port 500001
+            //UDP port 50001
             IPEndPoint serverEPUDP = new IPEndPoint(IPAddress.Any, 50001);
-            serverSocketUDP.Bind(serverEPUDP); 
-            EndPoint klijentEPUDP = new IPEndPoint(IPAddress.Any, 0); 
+            serverSocketUDP.Bind(serverEPUDP);
+            serverSocketUDP.Blocking = false;
 
-            byte[] bufferKlijent = new byte[1024];
+
             byte[] bufferVozilo = new byte[1024];
+            byte[] bufferKlijent = new byte[1024];
 
             Dictionary<int, TaksiVoziloModel> aktivnaVozila = new Dictionary<int, TaksiVoziloModel>();
             Dictionary<int, Socket> socketPoIdVozila = new Dictionary<int, Socket>();
             Dictionary<int, ZadatakModel> zadaci = new Dictionary<int, ZadatakModel>();
 
             List<Socket> socketsVozila = new List<Socket>();
+            List<Socket> socketsKorisnici = new List<Socket>();
+
             try
             {
                 //na pocetku ispisujemo
                 Ispisi(aktivnaVozila, zadaci);
                 while (true)
                 {
-
                     List<Socket> checkRead = new List<Socket>();
-                    //obraditi checkError?
+                    List<Socket> checkError = new List<Socket>();
 
                     checkRead.Add(serverSocketTCP);
                     checkRead.Add(serverSocketUDP);
 
                     foreach (Socket socket in socketsVozila)
+                    {
+                        checkRead.Add(socket);
+                    }
+
+                    foreach (Socket socket in socketsKorisnici)
                     {
                         checkRead.Add(socket);
                     }
@@ -75,11 +81,66 @@ namespace Server
                                 vozilo.Blocking = false;
                                 socketsVozila.Add(vozilo);
                             }
+                            //klijent salje ZAHTEV
+                            else if (socket == serverSocketUDP)
+                            {
+                                EndPoint klijentEPUDP = new IPEndPoint(IPAddress.Any, 0);
+                                KlijentModel zahtev1 = null;
+                                int primljenihBajtovaKlijent1 = serverSocketUDP.ReceiveFrom(bufferKlijent, ref klijentEPUDP);
+                                using (MemoryStream ms = new MemoryStream(bufferKlijent, 0, primljenihBajtovaKlijent1))
+                                {
+                                    BinaryFormatter bf = new BinaryFormatter();
+                                    zahtev1 = bf.Deserialize(ms) as KlijentModel;
+                                }
 
-                            //klijentsko slanje zahteva
-                            //izbor najblizeg vozila
-                            //slanje zadatka vozilu
-                            //slanje odgovora klijentu
+                                //server pronalazi najbolje vozilo
+                                TaksiVoziloModel najbolji = NadjiNajblizeVozilo(aktivnaVozila, zahtev1.pocetnaTacka);
+
+                                if (najbolji == null)
+                                {
+                                    string odgovorKlijentu1 = $"Nema dostupnih vozila u ovom trenutku";
+                                    byte[] bufferOdg1 = Encoding.UTF8.GetBytes(odgovorKlijentu1);
+                                    serverSocketUDP.SendTo(bufferOdg1, klijentEPUDP);
+                                    continue;
+                                }
+
+                                //klijent uspostavio komunikaciju -> saljemo zadatak najblizem vozilu, saljemo odgovor klijentu
+                                ZadatakModel zadatak = new ZadatakModel
+                                {
+                                    ID = zadaci.Count() + 1,
+                                    pozicijaKlijenta = zahtev1.pocetnaTacka,
+                                    zeljenaPozicija = zahtev1.krajnjaTacka,
+                                    IDKlijenta = zahtev1.IDKlijenta,
+                                    IDVozila = najbolji.Id,
+                                    PredjenaRazdaljina = IzracunajRazdaljinu(zahtev1.pocetnaTacka, new Koordinata(najbolji.koordinataX, najbolji.koordinataY))
+                                };
+                                byte[] bufferZadatak = new byte[1024];
+
+                                zadaci[najbolji.Id] = zadatak;
+                                zadatak.StatusZadatka = StatusZadatka.Aktivan;
+
+                                //slanje zadatka vozilu
+                                using (MemoryStream ms = new MemoryStream())
+                                {
+                                    BinaryFormatter bf = new BinaryFormatter();
+                                    bf.Serialize(ms, zadatak);
+                                    bufferZadatak = ms.ToArray();
+
+                                    Socket voziloSocket = socketPoIdVozila[najbolji.Id];
+                                    IPEndPoint voziloEPTCP = voziloSocket.RemoteEndPoint as IPEndPoint;
+                                    int brBajta = voziloSocket.SendTo(bufferZadatak, 0, bufferZadatak.Length, SocketFlags.None, voziloEPTCP);
+                                }
+
+                                double brzina = 1.0;
+                                double vreme = zadatak.PredjenaRazdaljina / brzina;
+                                string odgovorKlijentu = $"Vozilo {najbolji.Id} dolazi za priblizno {vreme} sekundi!";
+                                byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
+                                serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
+
+                                //prikazujemo listu zadataka
+                                Ispisi(aktivnaVozila, zadaci);
+
+                            }
 
                             if (socketsVozila.Contains(socket))
                             {
@@ -127,6 +188,7 @@ namespace Server
                         }
                     }
                 }
+
             }
             catch (SocketException ex)
             {
@@ -137,10 +199,11 @@ namespace Server
             Console.ReadKey();
             serverSocketTCP.Close();
             serverSocketUDP.Close();
+            foreach (var s in socketsKorisnici)
+                s.Close();
             foreach (var s in socketsVozila)
                 s.Close();
         }
-
 
         private static void Ispisi(Dictionary<int, TaksiVoziloModel> vozila, Dictionary<int, ZadatakModel> zadaci)
         {
@@ -154,7 +217,13 @@ namespace Server
                 Console.WriteLine($"{v.Id,2}  {v.Status,-10} ({v.koordinataX,2},{v.koordinataY,2})  {v.Km,7:F1}  {v.Zarada,9:C}  {v.BrojMusterija,10}");
             }
 
-            //ispisivanje zadataka
+            Console.WriteLine();
+            Console.WriteLine("ZADACI");
+            Console.WriteLine("ID Zadatka  ID Klijenta  ID Vozila  Status");
+            foreach (var z in zadaci.Values.OrderBy(z => z.ID))
+            {
+                Console.WriteLine($"{z.ID,-10}  {z.IDKlijenta,-11}  {z.IDVozila,-9}  {z.StatusZadatka}");
+            }
 
             Console.WriteLine("\nMAPA (20x20):\n");
             char[,] mapa = new char[20, 20];
@@ -166,14 +235,47 @@ namespace Server
                 if (v.koordinataX < 20 && v.koordinataY < 20)
                     mapa[v.koordinataX, v.koordinataY] = 'V';
 
-            //potrebno dodati prikaz klijenta na mapi
-
+            foreach (var z in zadaci.Values.Where(z => z.StatusZadatka == StatusZadatka.Aktivan))
+            {
+                var vozilo = vozila[z.IDVozila];
+                if (vozilo.Status == StatusVozila.NaPutu)
+                {
+                    if (z.pozicijaKlijenta.X < 20 && z.pozicijaKlijenta.Y < 20)
+                        mapa[z.pozicijaKlijenta.X, z.pozicijaKlijenta.Y] = 'K';
+                }
+            }
             for (int y = 0; y < 20; y++)
             {
                 for (int x = 0; x < 20; x++)
                     Console.Write(mapa[x, y] + " ");
                 Console.WriteLine();
             }
+        }
+
+        private static TaksiVoziloModel NadjiNajblizeVozilo(Dictionary<int, TaksiVoziloModel> vozila, Koordinata klijent)
+        {
+            TaksiVoziloModel najblizi = null;
+            double minUdaljenost = double.MaxValue;
+
+            foreach (var vozilo in vozila.Values)
+            {
+                if (vozilo.Status == StatusVozila.Slobodno)
+                {
+                    double dist = Math.Sqrt(Math.Pow(vozilo.koordinataX - klijent.X, 2) + Math.Pow(vozilo.koordinataY - klijent.Y, 2));
+                    if (dist < minUdaljenost)
+                    {
+                        minUdaljenost = dist;
+                        najblizi = vozilo;
+                    }
+                }
+            }
+
+            return najblizi;
+        }
+
+        public static int IzracunajRazdaljinu(Koordinata a, Koordinata b)
+        {
+            return Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
         }
     }
 }
