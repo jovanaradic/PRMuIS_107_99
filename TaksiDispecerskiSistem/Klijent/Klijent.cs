@@ -87,35 +87,43 @@ namespace Klijent
 
                 byte[] bufferZahtev = new byte[1024];
 
-                //slanje zahteva serveru
-                using (MemoryStream ms = new MemoryStream())
+                try
                 {
-                    BinaryFormatter bf = new BinaryFormatter();
-                    bf.Serialize(ms, zahtev);
-                    bufferZahtev = ms.ToArray();
-                    int brBajta = clientSocketUDP.SendTo(bufferZahtev, 0, bufferZahtev.Length, SocketFlags.None, serverEP);
+                    //slanje zahteva serveru
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        BinaryFormatter bf = new BinaryFormatter();
+                        bf.Serialize(ms, zahtev);
+                        bufferZahtev = ms.ToArray();
+                        int brBajta = clientSocketUDP.SendTo(bufferZahtev, 0, bufferZahtev.Length, SocketFlags.None, serverEP);
+                    }
+
+                    byte[] bufferOdgovorServera = new byte[1024];
+
+                    if (clientSocketUDP.Poll(4000 * 1000, SelectMode.SelectRead))
+                    {
+                        int brBajtaOdg = clientSocketUDP.ReceiveFrom(bufferOdgovorServera, ref posiljaocEP);
+
+                        string odgovorServera = Encoding.UTF8.GetString(bufferOdgovorServera, 0, brBajtaOdg);
+                        Console.WriteLine("\n-------------------------------------------------");
+                        Console.WriteLine("Odgovor servera:");
+                        Console.WriteLine($"   {odgovorServera}");
+                        Console.WriteLine("-------------------------------------------------");
+                    }
+                    else
+                    {
+                        Console.WriteLine("\n-------------------------------------------------");
+                        Console.WriteLine(" Server ne odgovara (nema dostupnih vozila?).");
+                        Console.WriteLine("-------------------------------------------------");
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Greska prilikom slanja/primanja: {ex.Message}");
                 }
 
-                byte[] bufferOdgovorServera = new byte[1024];
                 
-                if (clientSocketUDP.Poll(4000 * 1000, SelectMode.SelectRead))
-                {
-                    int brBajtaOdg = clientSocketUDP.ReceiveFrom(bufferOdgovorServera, ref posiljaocEP);
-
-                    string odgovorServera = Encoding.UTF8.GetString(bufferOdgovorServera, 0, brBajtaOdg);
-                    Console.WriteLine("\n-------------------------------------------------");
-                    Console.WriteLine("Odgovor servera:");
-                    Console.WriteLine($"   {odgovorServera}");
-                    Console.WriteLine("-------------------------------------------------");
-                }
-                else
-                {
-                    Console.WriteLine("\n-------------------------------------------------");
-                    Console.WriteLine(" Server ne odgovara (nema dostupnih vozila?).");
-                    Console.WriteLine("-------------------------------------------------");
-                }
-                
-
                 Console.WriteLine("\nPritisni Enter za novi zahtev ili 'kraj' da izadješ...");
                 if (Console.ReadLine()?.Trim().ToLower() == "kraj") break;
 
