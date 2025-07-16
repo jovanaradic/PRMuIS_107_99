@@ -30,11 +30,22 @@ namespace TaksiVozilo
             }
 
             Random r = new Random();
-            Koordinata lokacija = new Koordinata(r.Next(0, 20), r.Next(0, 20));
+            Koordinata lokacija = new Koordinata(r.Next(0, 29), r.Next(0, 29));
 
             Socket clientSocketTCP = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint serverEP = new IPEndPoint(IPAddress.Loopback, 50000);
-            clientSocketTCP.Connect(serverEP);
+
+            try
+            {
+                clientSocketTCP.Connect(serverEP);
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"GRESKA: nije moguce povezati se na server: {ex}");
+                Console.WriteLine("\nPritisnite Enter za izlaz...");
+                Console.ReadLine();
+                return;
+            }
 
             TaksiVoziloModel vozilo = new TaksiVoziloModel
             {
@@ -96,6 +107,7 @@ namespace TaksiVozilo
                         };
                         //salje se status voznje pri zavrsetku
                         byte[] buffer = new byte[1024];
+
                         using (MemoryStream ms = new MemoryStream())
                         {
                             BinaryFormatter bf = new BinaryFormatter();
@@ -121,7 +133,7 @@ namespace TaksiVozilo
                 }
             }
 
-            Console.WriteLine("Klijent zavrsava sa radom");
+            Console.WriteLine("Vozilo zavrsava sa radom");
             Console.ReadKey();
             clientSocketTCP.Close();
         }
@@ -147,13 +159,20 @@ namespace TaksiVozilo
 
         private static void PosaljiVozilo(Socket socket, EndPoint serverEP, TaksiVoziloModel vozilo)
         {
-            byte[] buffer = new byte[1024];
-            using (MemoryStream ms = new MemoryStream())
+            try
             {
-                BinaryFormatter bf = new BinaryFormatter();
-                bf.Serialize(ms, vozilo);
-                buffer = ms.ToArray();
-                socket.Send(buffer);
+                byte[] buffer = new byte[1024];
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    BinaryFormatter bf = new BinaryFormatter();
+                    bf.Serialize(ms, vozilo);
+                    buffer = ms.ToArray();
+                    socket.Send(buffer);
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"Doslo je do greske prilikom slanja: {ex}");
             }
         }
     }
