@@ -39,22 +39,50 @@ namespace Klijent
                 Console.WriteLine("============================================");
                 Console.WriteLine($"      KLIJENT ({id}) – Novi zahtev");
                 Console.WriteLine("============================================");
-                Console.Write("Početna (x y) ili 'kraj': ");
-                string ln = Console.ReadLine();
-                if (ln == "kraj") break;
+                Koordinata pocetna = null;
+                Koordinata krajnja = null;
 
-                string[] p1 = ln.Split(' ');
-                Console.Write("Krajnja (x y): ");
-                string[] p2 = Console.ReadLine().Split(' ');
+                while (true)
+                {
+                    Console.Write("Početna (x y) ili 'kraj': ");
+                    string unos = Console.ReadLine()?.Trim();
+                    if (unos?.ToLower() == "kraj") return;
+
+                    string[] delovi = unos.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    if (delovi.Length == 2 &&
+                        int.TryParse(delovi[0], out int x) && x >= 0 && x < 30 &&
+                        int.TryParse(delovi[1], out int y) && y >= 0 && y < 30)
+                    {
+                        pocetna = new Koordinata(x, y);
+                        break;
+                    }
+                    Console.WriteLine("GREŠKA: Unesite koordinate u formatu: X Y (razdvojeno razmakom, brojevi 0–29).");
+                }
+
+                while (true)
+                {
+                    Console.Write("Krajnja (x y): ");
+                    string unos = Console.ReadLine()?.Trim();
+
+                    string[] delovi = unos.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    if (delovi.Length == 2 &&
+                        int.TryParse(delovi[0], out int x) && x >= 0 && x < 30 &&
+                        int.TryParse(delovi[1], out int y) && y >= 0 && y < 30)
+                    {
+                        krajnja = new Koordinata(x, y);
+                        break;
+                    }
+                    Console.WriteLine("GREŠKA: Unesite koordinate u formatu: X Y (razdvojeno razmakom, brojevi 0–29).");
+                }
 
                 // Kreiranje zahteva
                 KlijentModel zahtev = new KlijentModel
                 {
-                    //potrebno kasnije dodati id mozda
-                    //dodala
                     IDKlijenta = id,
-                    pocetnaTacka = new Koordinata(int.Parse(p1[0]), int.Parse(p1[1])),
-                    krajnjaTacka = new Koordinata(int.Parse(p2[0]), int.Parse(p2[1]))
+                    pocetnaTacka = pocetna,
+                    krajnjaTacka = krajnja
                 };
 
                 byte[] bufferZahtev = new byte[1024];
