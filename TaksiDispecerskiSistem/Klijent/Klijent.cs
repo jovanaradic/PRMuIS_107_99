@@ -61,7 +61,7 @@ namespace Klijent
                 }
 
                 byte[] bufferOdgovorServera = new byte[1024];
-                /*
+                
                 if (clientSocketUDP.Poll(4000 * 1000, SelectMode.SelectRead))
                 {
                     int brBajtaOdg = clientSocketUDP.ReceiveFrom(bufferOdgovorServera, ref posiljaocEP);
@@ -78,7 +78,7 @@ namespace Klijent
                     Console.WriteLine(" Server ne odgovara (nema dostupnih vozila?).");
                     Console.WriteLine("-------------------------------------------------");
                 }
-                */
+                
 
                 Console.WriteLine("\nPritisni Enter za novi zahtev ili 'kraj' da izadješ...");
                 if (Console.ReadLine()?.Trim().ToLower() == "kraj") break;
