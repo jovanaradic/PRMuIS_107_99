@@ -18,7 +18,11 @@ namespace Klijent
         {
             Console.Title = "KLIJENT ";
             Console.Write("ID klijenta: ");
-            int id = int.Parse(Console.ReadLine() ?? "0");
+            int id;
+            while (!int.TryParse(Console.ReadLine(), out id) || id < 0)
+            {
+                Console.WriteLine("GREŠKA: ID mora biti ceo broj (pozitivan). Pokušajte ponovo.");
+            }
 
             Socket clientSocketUDP = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             IPEndPoint serverEP = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 50001);
