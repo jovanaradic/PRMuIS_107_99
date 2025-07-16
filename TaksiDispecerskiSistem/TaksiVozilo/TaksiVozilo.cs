@@ -103,7 +103,7 @@ namespace TaksiVozilo
                             IdKlijenta = zadatak.IDKlijenta,
                             IdVozila = id,
                             Km = zadatak.PredjenaRazdaljina,
-                            CenaVoznje = zadatak.PredjenaRazdaljina * 0.8
+                            CenaVoznje = zadatak.PredjenaRazdaljina * 80
                         };
                         //salje se status voznje pri zavrsetku
                         byte[] buffer = new byte[1024];
