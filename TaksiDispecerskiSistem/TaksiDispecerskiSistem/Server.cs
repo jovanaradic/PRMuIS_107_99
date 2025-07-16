@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ZajednickeKlase.Modeli;
 using ZajednickeKlase.Enumeracije;
+using System.Diagnostics.Eventing.Reader;
 
 namespace Server
 {
@@ -150,11 +151,24 @@ namespace Server
                                     BinaryFormatter bf = new BinaryFormatter();
                                     object obj = bf.Deserialize(ms);
 
+
                                     //PROVJERITI
                                     //prikljucuje se novo vozilo || update stanje vozila
                                     if (obj is TaksiVoziloModel vozilo)
                                     {
-                                        aktivnaVozila[vozilo.Id] = vozilo;
+                                        if (aktivnaVozila.ContainsKey(vozilo.Id))
+                                        {
+                                            var postojeci = aktivnaVozila[vozilo.Id];
+
+                                            // Ažuriraj samo stvari koje se menjaju
+                                            postojeci.koordinataX = vozilo.koordinataX;
+                                            postojeci.koordinataY = vozilo.koordinataY;
+                                            postojeci.Status = vozilo.Status;
+                                        }
+                                        else
+                                        {
+                                            aktivnaVozila[vozilo.Id] = vozilo;
+                                        }
                                         socketPoIdVozila[vozilo.Id] = socket;
 
                                         Ispisi(aktivnaVozila, zadaci);
@@ -214,7 +228,7 @@ namespace Server
             Console.WriteLine("ID  Status      Lokacija    Km       Zarada      Musterija");
             foreach (var v in vozila.Values.OrderBy(v => v.Id))
             {
-                Console.WriteLine($"{v.Id,2}  {v.Status,-10} ({v.koordinataX,2},{v.koordinataY,2})  {v.Km,7:F1}  {v.Zarada,9:C}  {v.BrojMusterija,10}");
+                Console.WriteLine($"{v.Id,-3} {v.Status,-10}  ({v.koordinataX,2},{v.koordinataY,2})  {v.Km,6:0.0}  {v.Zarada,8:0.00} RSD  {v.BrojMusterija,3}");
             }
 
             Console.WriteLine();
@@ -226,28 +240,44 @@ namespace Server
             }
 
             Console.WriteLine("\nMAPA (20x20):\n");
-            char[,] mapa = new char[20, 20];
+            string[,] mapa = new string[20, 20];
             for (int y = 0; y < 20; y++)
                 for (int x = 0; x < 20; x++)
-                    mapa[x, y] = '.';
+                    mapa[x, y] = ".";
 
             foreach (var v in vozila.Values)
                 if (v.koordinataX < 20 && v.koordinataY < 20)
-                    mapa[v.koordinataX, v.koordinataY] = 'V';
+                    mapa[v.koordinataX, v.koordinataY] = "V" + v.Id.ToString();
 
+            //prikaz klijent i vozilo+klijent
             foreach (var z in zadaci.Values.Where(z => z.StatusZadatka == StatusZadatka.Aktivan))
             {
-                var vozilo = vozila[z.IDVozila];
-                if (vozilo.Status == StatusVozila.NaPutu)
+                var vozilo = vozila.ContainsKey(z.IDVozila) ? vozila[z.IDVozila] : null;
+
+                if (vozilo != null)
                 {
-                    if (z.pozicijaKlijenta.X < 20 && z.pozicijaKlijenta.Y < 20)
-                        mapa[z.pozicijaKlijenta.X, z.pozicijaKlijenta.Y] = 'K';
+                    bool voziloNaPozicijiKlijenta = vozilo.koordinataX == z.pozicijaKlijenta.X && vozilo.koordinataY == z.pozicijaKlijenta.Y;
+
+                    // klijent ceka
+                    if (!voziloNaPozicijiKlijenta && z.pozicijaKlijenta.X < 20 && z.pozicijaKlijenta.Y < 20 && !vozilo.Status.Equals(StatusVozila.UVoznji))
+                    {
+                        mapa[z.pozicijaKlijenta.X, z.pozicijaKlijenta.Y] = "K" + z.IDKlijenta;
+                    }
+
+                    //(V+K) samo ako je pokupio klijenta ili su na istoj poziciji
+                    if (vozilo.Status == StatusVozila.UVoznji || voziloNaPozicijiKlijenta)
+                    {
+                        if (vozilo.koordinataX < 20 && vozilo.koordinataY < 20)
+                        {
+                            mapa[vozilo.koordinataX, vozilo.koordinataY] = $"V{vozilo.Id}+K";
+                        }
+                    }
                 }
             }
             for (int y = 0; y < 20; y++)
             {
                 for (int x = 0; x < 20; x++)
-                    Console.Write(mapa[x, y] + " ");
+                    Console.Write($"{mapa[x, y],-6}");
                 Console.WriteLine();
             }
         }
