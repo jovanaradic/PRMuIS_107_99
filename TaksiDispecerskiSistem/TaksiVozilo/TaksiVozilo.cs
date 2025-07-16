@@ -19,7 +19,15 @@ namespace TaksiVozilo
         {
             Console.Title = "VOZILO";
             Console.Write("ID vozila: ");
-            int id = int.Parse(Console.ReadLine() ?? "0");
+            int id;
+            while (true)
+            {
+               
+                string input = Console.ReadLine();
+                if (int.TryParse(input, out id) && id >= 0)
+                    break;
+                Console.WriteLine("GREŠKA: ID mora biti pozitivan ceo broj. Pokušajte ponovo.");
+            }
 
             Random r = new Random();
             Koordinata lokacija = new Koordinata(r.Next(0, 20), r.Next(0, 20));

@@ -19,9 +19,13 @@ namespace Klijent
             Console.Title = "KLIJENT ";
             Console.Write("ID klijenta: ");
             int id;
-            while (!int.TryParse(Console.ReadLine(), out id) || id < 0)
+            while (true)
             {
-                Console.WriteLine("GREŠKA: ID mora biti ceo broj (pozitivan). Pokušajte ponovo.");
+                
+                string input = Console.ReadLine();
+                if (int.TryParse(input, out id) && id >= 0)
+                    break;
+                Console.WriteLine("GREŠKA: ID mora biti pozitivan ceo broj. Pokušajte ponovo.");
             }
 
             Socket clientSocketUDP = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
