@@ -153,7 +153,7 @@ namespace TaksiVozilo
                     vozilo.koordinataY--;
 
                 PosaljiVozilo(socket, serverEP, vozilo);
-                Thread.Sleep(800); // pauza da se kretanje vidi (0.3 sekunde po koraku)
+                Thread.Sleep(800); // pauza da se kretanje vidi (0.8 sekunde po koraku)
             }
         }
 
