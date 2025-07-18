@@ -132,8 +132,9 @@ namespace Server
                                     int brBajta = voziloSocket.SendTo(bufferZadatak, 0, bufferZadatak.Length, SocketFlags.None, voziloEPTCP);
                                 }
 
-                                double brzina = 1.0;
+                                double brzina = 0.8;
                                 double vreme = zadatak.PredjenaRazdaljina / brzina;
+                                //slanje odgovora klijentu
                                 string odgovorKlijentu = $"Vozilo {najbolji.Id} dolazi za priblizno {vreme} sekundi!";
                                 byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
                                 serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
@@ -210,13 +211,13 @@ namespace Server
             }
 
             Console.WriteLine("Server zavrsava sa radom");
-            Console.ReadKey();
             serverSocketTCP.Close();
             serverSocketUDP.Close();
             foreach (var s in socketsKorisnici)
                 s.Close();
             foreach (var s in socketsVozila)
                 s.Close();
+            Console.ReadKey();
         }
 
         private static void Ispisi(Dictionary<int, TaksiVoziloModel> vozila, Dictionary<int, ZadatakModel> zadaci)
