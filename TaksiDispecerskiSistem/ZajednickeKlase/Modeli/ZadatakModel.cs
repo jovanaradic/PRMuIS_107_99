@@ -12,7 +12,6 @@ namespace ZajednickeKlase.Modeli
     public class ZadatakModel
     {
         public int ID { get; set; }
-
         public int IDKlijenta { get; set; }
         public int IDVozila { get; set; }
 
@@ -23,15 +22,5 @@ namespace ZajednickeKlase.Modeli
         public StatusZadatka StatusZadatka { get; set; } = StatusZadatka.Aktivan;
 
         public double PredjenaRazdaljina { get; set; }
-
-        public ZadatakModel(int iDKlijenta, int iDVozila, StatusZadatka statusZadatka, double predjenaRazdaljina)
-        {
-            IDKlijenta = iDKlijenta;
-            IDVozila = iDVozila;
-            StatusZadatka = statusZadatka;
-            PredjenaRazdaljina = predjenaRazdaljina;
-        }
-
-        public ZadatakModel() { }
     }
 }

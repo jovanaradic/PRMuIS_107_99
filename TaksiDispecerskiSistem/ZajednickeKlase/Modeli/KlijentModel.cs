@@ -19,10 +19,5 @@ namespace ZajednickeKlase.Modeli
 
         public KlijentModel() { }
 
-        public KlijentModel(Koordinata pocetnaTacka, Koordinata krajnjaTacka)
-        {
-            this.pocetnaTacka = pocetnaTacka;
-            this.krajnjaTacka = krajnjaTacka;
-        }
     }
 }

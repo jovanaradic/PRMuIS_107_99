@@ -15,6 +15,5 @@ namespace ZajednickeKlase.Modeli
         public double Km { get; set; }
         public double CenaVoznje { get; set; }
 
-        public StatusVoznje() { }
     }
 }

@@ -19,12 +19,5 @@ namespace ZajednickeKlase.Modeli
 
         public int BrojMusterija { get; set; } = 0;
 
-        public TaksiVoziloModel() { }
-
-        public TaksiVoziloModel(int koordinataX, int koordinataY)
-        {
-            this.koordinataX = koordinataX;
-            this.koordinataY = koordinataY;
-        }
     }
 }
