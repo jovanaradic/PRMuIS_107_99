@@ -41,7 +41,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Class1.cs" />
     <Compile Include="Enumeracije\EnumVozilo.cs" />
     <Compile Include="Enumeracije\EnumZadatak.cs" />
     <Compile Include="Enumeracije\EnumZahtev.cs" />
