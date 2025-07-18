@@ -125,6 +125,13 @@ namespace Klijent
                         Console.WriteLine("Odgovor servera:");
                         Console.WriteLine($"   {odgovorServera}");
                         Console.WriteLine("-------------------------------------------------");
+
+                        /*
+                        while (true)
+                        {
+                            //update klijenta od strane servera
+                            continue;
+                        }*/
                     }
                     else
                     {
