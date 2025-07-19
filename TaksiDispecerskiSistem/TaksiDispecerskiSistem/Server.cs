@@ -98,6 +98,14 @@ namespace Server
                                     zahtev1 = bf.Deserialize(ms) as KlijentModel;
                                 }
 
+                                if (EPPoIDKlijenta.ContainsKey(zahtev1.IDKlijenta))
+                                {
+                                    //prekinuti komunikaciju sa klijentom -> poslati poruku obrazlozenja
+                                    //u klijentu provjeriti da li je odbijeno -> npr PREKID KONEKCIJE da li sadrzi poruka odgovora
+                                    // prekid konekcije: vec postoji klijent sa istim id
+                                }
+                                //else sve ostalo
+
                                 //server pronalazi najbolje vozilo
                                 TaksiVoziloModel najbolji = NadjiNajblizeVozilo(aktivnaVozila, zahtev1.pocetnaTacka);
 
@@ -162,12 +170,37 @@ namespace Server
                                     object obj = bf.Deserialize(ms);
 
 
-                                    //PROVJERITI
-                                    //prikljucuje se novo vozilo || update stanje vozila
                                     if (obj is TaksiVoziloModel vozilo)
                                     {
                                         if (aktivnaVozila.ContainsKey(vozilo.Id))
                                         {
+                                            //PROVJERA DA LI POSTOJI VOZILO SA ISTIM ID 
+                                            /*
+                                            if (socketPoIdVozila.ContainsKey(vozilo.Id))
+                                            {
+                                                Socket stariSocket = socketPoIdVozila[vozilo.Id];
+
+                                                if (stariSocket == socket)
+                                                {
+                                                    // Ovo je update od postojećeg vozila (isti socket)
+                                                    //sav kod ispod u ifu
+                                                }
+                                                else
+                                                {
+                                                    // Drugi socket za isto vozilo
+                                                    // trebalo bi da svaki prozor vozila = novo vozilo = novi socket za svako
+                                                    // zatvoriti taj socket
+                                                    // poslati poruku odbijenice koja se treba prihvatiti u vozilu
+                                                }
+                                            }
+                                            else
+                                            {
+                                                // Novo vozilo
+                                                // vec obradjeno dole
+                                                socketPoIdVozila[vozilo.Id] = socket;
+                                                aktivnaVozila[vozilo.Id] = vozilo;
+                                            }*/
+
                                             var postojeci = aktivnaVozila[vozilo.Id];
 
                                             // Ažuriraj samo stvari koje se menjaju
