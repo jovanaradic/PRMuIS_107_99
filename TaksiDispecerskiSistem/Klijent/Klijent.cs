@@ -127,21 +127,24 @@ namespace Klijent
                         Console.WriteLine($"   {odgovorServera}");
                         Console.WriteLine("---------------------------------------------------------------------");
 
-                        Console.WriteLine("Update servera:");
-                        //klijent ocekuje update od servera
-                        while (true)
+                        if (!odgovorServera.Contains("Nema"))
                         {
-                            int brBajtaUpdate = clientSocketUDP.ReceiveFrom(bufferUpdateServera, ref posiljaocEP);
-                            string updateServera = Encoding.UTF8.GetString(bufferUpdateServera, 0, brBajtaUpdate);
+                            Console.WriteLine("Update servera:");
+                            //klijent ocekuje update od servera
+                            while (true)
+                            {
+                                int brBajtaUpdate = clientSocketUDP.ReceiveFrom(bufferUpdateServera, ref posiljaocEP);
+                                string updateServera = Encoding.UTF8.GetString(bufferUpdateServera, 0, brBajtaUpdate);
 
-                            if (updateServera.Contains("Stigli"))
-                            {
-                                Console.WriteLine($"   {updateServera}");
-                                break;
-                            }
-                            else
-                            {
-                                Console.WriteLine($"   {updateServera}");
+                                if (updateServera.Contains("Stigli"))
+                                {
+                                    Console.WriteLine($"   {updateServera}");
+                                    break;
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"   {updateServera}");
+                                }
                             }
                         }
                     }

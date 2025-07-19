@@ -239,8 +239,8 @@ namespace Server
                                         else
                                         {
                                             aktivnaVozila[vozilo.Id] = vozilo;
+                                            socketPoIdVozila[vozilo.Id] = socket;
                                         }
-                                        socketPoIdVozila[vozilo.Id] = socket;
 
                                         Ispisi(aktivnaVozila, zadaci);
                                     }
