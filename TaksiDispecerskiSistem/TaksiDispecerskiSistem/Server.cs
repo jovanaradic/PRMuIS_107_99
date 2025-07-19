@@ -180,12 +180,12 @@ namespace Server
                                             if (postojeci.Status == StatusVozila.NaPutu)
                                             {
                                                 brojacKorakaPoZadatku[postojeci.Id]++;
-                                                if (brojacKorakaPoZadatku[postojeci.Id] % 4  == 0)
+                                                int udaljenost = IzracunajRazdaljinu(new Koordinata(postojeci.koordinataX, postojeci.koordinataY), zadatak.pozicijaKlijenta);
+
+                                                if (brojacKorakaPoZadatku[postojeci.Id] % 4  == 0 && udaljenost > 2)
                                                 {
                                                     int idKlijenta = VoziloKlijentID[postojeci.Id];
                                                     EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
-
-                                                    int udaljenost = IzracunajRazdaljinu(new Koordinata(postojeci.koordinataX, postojeci.koordinataY), zadatak.pozicijaKlijenta);
                                                     double vrijeme = udaljenost / 0.8;
 
                                                     string odgovorKlijentu = $"Vozilo se priblizava... Dolazi na odrediste za {vrijeme} sekundi!";
@@ -235,7 +235,7 @@ namespace Server
                                             int idKlijenta = status.IdKlijenta;
                                             EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
 
-                                            string odgovorKlijentu = $"Stigli ste na odredite! Voznja je placenja {status.CenaVoznje} RSD!";
+                                            string odgovorKlijentu = $"Stigli ste na odrediste! Voznja je placena {status.CenaVoznje} RSD!";
                                             byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
                                             serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
 

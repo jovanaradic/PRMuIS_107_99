@@ -164,7 +164,7 @@ namespace Klijent
 
             }
 
-            Console.WriteLine("KlijenT zavrsava sa radom");
+            Console.WriteLine("Klijent zavrsava sa radom!");
             clientSocketUDP.Close(); // Zatvaramo soket na kraju rada
             Console.ReadKey();
         }
