@@ -42,6 +42,10 @@ namespace Server
             Dictionary<int, TaksiVoziloModel> aktivnaVozila = new Dictionary<int, TaksiVoziloModel>();
             Dictionary<int, Socket> socketPoIdVozila = new Dictionary<int, Socket>();
             Dictionary<int, ZadatakModel> zadaci = new Dictionary<int, ZadatakModel>();
+            //pracenje koraka za obavjestavanje klijenta
+            Dictionary<int, int> brojacKorakaPoZadatku = new Dictionary<int, int>();    
+            Dictionary<int, EndPoint> EPPoIDKlijenta = new Dictionary<int, EndPoint>();
+            Dictionary<int, int> VoziloKlijentID = new Dictionary<int, int>();
 
             List<Socket> socketsVozila = new List<Socket>();
             List<Socket> socketsKorisnici = new List<Socket>();
@@ -139,6 +143,11 @@ namespace Server
                                 byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
                                 serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
 
+                                //dodavanje klijenta u rijecnik za pracenje zadatka
+                                brojacKorakaPoZadatku[najbolji.Id] = 0;
+                                EPPoIDKlijenta[zahtev1.IDKlijenta] = klijentEPUDP;
+                                VoziloKlijentID[najbolji.Id] = zahtev1.IDKlijenta;
+
                                 //prikazujemo listu zadataka
                                 Ispisi(aktivnaVozila, zadaci);
 
@@ -165,6 +174,34 @@ namespace Server
                                             postojeci.koordinataX = vozilo.koordinataX;
                                             postojeci.koordinataY = vozilo.koordinataY;
                                             postojeci.Status = vozilo.Status;
+
+
+                                            var zadatak = zadaci[postojeci.Id];
+                                            if (postojeci.Status == StatusVozila.NaPutu)
+                                            {
+                                                brojacKorakaPoZadatku[postojeci.Id]++;
+                                                if (brojacKorakaPoZadatku[postojeci.Id] % 4  == 0)
+                                                {
+                                                    int idKlijenta = VoziloKlijentID[postojeci.Id];
+                                                    EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
+
+                                                    int udaljenost = IzracunajRazdaljinu(new Koordinata(postojeci.koordinataX, postojeci.koordinataY), zadatak.pozicijaKlijenta);
+                                                    double vrijeme = udaljenost / 0.8;
+
+                                                    string odgovorKlijentu = $"Vozilo se priblizava... Dolazi na odrediste za {vrijeme} sekundi!";
+                                                    byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
+                                                    serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
+                                                }
+                                            }
+                                            if(zadatak.pozicijaKlijenta.X == postojeci.koordinataX && zadatak.pozicijaKlijenta.Y ==  postojeci.koordinataY && postojeci.Status != StatusVozila.UVoznji)
+                                            {
+                                                int idKlijenta = VoziloKlijentID[postojeci.Id];
+                                                EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
+
+                                                string odgovorKlijentu = $"Vozilo se trenutno nalazi na vasoj poziciji!";
+                                                byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
+                                                serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
+                                            }
                                         }
                                         else
                                         {
@@ -194,6 +231,13 @@ namespace Server
                                                     break;
                                                 }
                                             }
+
+                                            int idKlijenta = status.IdKlijenta;
+                                            EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
+
+                                            string odgovorKlijentu = $"Stigli ste na odredite! Voznja je placenja {status.CenaVoznje} RSD!";
+                                            byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
+                                            serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
 
                                             Ispisi(aktivnaVozila, zadaci);
                                         }

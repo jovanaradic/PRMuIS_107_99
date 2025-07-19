@@ -115,29 +115,41 @@ namespace Klijent
                     }
 
                     byte[] bufferOdgovorServera = new byte[1024];
+                    byte[] bufferUpdateServera = new byte[1024];
 
                     if (clientSocketUDP.Poll(4000 * 1000, SelectMode.SelectRead))
                     {
                         int brBajtaOdg = clientSocketUDP.ReceiveFrom(bufferOdgovorServera, ref posiljaocEP);
 
                         string odgovorServera = Encoding.UTF8.GetString(bufferOdgovorServera, 0, brBajtaOdg);
-                        Console.WriteLine("\n-------------------------------------------------");
+                        Console.WriteLine("\n---------------------------------------------------------------------");
                         Console.WriteLine("Odgovor servera:");
                         Console.WriteLine($"   {odgovorServera}");
-                        Console.WriteLine("-------------------------------------------------");
+                        Console.WriteLine("---------------------------------------------------------------------");
 
-                        /*
+                        Console.WriteLine("Update servera:");
+                        //klijent ocekuje update od servera
                         while (true)
                         {
-                            //update klijenta od strane servera
-                            continue;
-                        }*/
+                            int brBajtaUpdate = clientSocketUDP.ReceiveFrom(bufferUpdateServera, ref posiljaocEP);
+                            string updateServera = Encoding.UTF8.GetString(bufferUpdateServera, 0, brBajtaUpdate);
+
+                            if (updateServera.Contains("Stigli"))
+                            {
+                                Console.WriteLine($"   {updateServera}");
+                                break;
+                            }
+                            else
+                            {
+                                Console.WriteLine($"   {updateServera}");
+                            }
+                        }
                     }
                     else
                     {
-                        Console.WriteLine("\n-------------------------------------------------");
+                        Console.WriteLine("\n---------------------------------------------------------------------");
                         Console.WriteLine(" Server ne odgovara (nema dostupnih vozila?).");
-                        Console.WriteLine("-------------------------------------------------");
+                        Console.WriteLine("---------------------------------------------------------------------");
                     }
 
                 }
