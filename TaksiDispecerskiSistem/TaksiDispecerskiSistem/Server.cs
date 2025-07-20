@@ -43,7 +43,7 @@ namespace Server
             Dictionary<int, Socket> socketPoIdVozila = new Dictionary<int, Socket>();
             Dictionary<int, ZadatakModel> zadaci = new Dictionary<int, ZadatakModel>();
             //pracenje koraka za obavjestavanje klijenta
-            Dictionary<int, int> brojacKorakaPoZadatku = new Dictionary<int, int>();    
+            Dictionary<int, int> brojacKorakaPoZadatku = new Dictionary<int, int>();
             Dictionary<int, EndPoint> EPPoIDKlijenta = new Dictionary<int, EndPoint>();
             Dictionary<int, int> VoziloKlijentID = new Dictionary<int, int>();
 
@@ -82,199 +82,225 @@ namespace Server
                             //zahtjev vozila za konekciju
                             if (socket == serverSocketTCP)
                             {
-                                Socket vozilo = serverSocketTCP.Accept();
-                                vozilo.Blocking = false;
-                                socketsVozila.Add(vozilo);
+                                try
+                                {
+                                    Socket vozilo = serverSocketTCP.Accept();
+                                    vozilo.Blocking = false;
+                                    socketsVozila.Add(vozilo);
+                                }
+                                catch (SocketException ex)
+                                {
+                                    Console.WriteLine($"Greška prilikom prihvatanja konekcije vozila: {ex.Message}");
+                                }
                             }
                             //klijent salje ZAHTEV
                             else if (socket == serverSocketUDP)
                             {
-                                EndPoint klijentEPUDP = new IPEndPoint(IPAddress.Any, 0);
-                                KlijentModel zahtev1 = null;
-                                int primljenihBajtovaKlijent1 = serverSocketUDP.ReceiveFrom(bufferKlijent, ref klijentEPUDP);
-                                using (MemoryStream ms = new MemoryStream(bufferKlijent, 0, primljenihBajtovaKlijent1))
+                                try
                                 {
-                                    BinaryFormatter bf = new BinaryFormatter();
-                                    zahtev1 = bf.Deserialize(ms) as KlijentModel;
+                                    EndPoint klijentEPUDP = new IPEndPoint(IPAddress.Any, 0);
+                                    KlijentModel zahtev1 = null;
+                                    int primljenihBajtovaKlijent1 = serverSocketUDP.ReceiveFrom(bufferKlijent, ref klijentEPUDP);
+                                    using (MemoryStream ms = new MemoryStream(bufferKlijent, 0, primljenihBajtovaKlijent1))
+                                    {
+                                        BinaryFormatter bf = new BinaryFormatter();
+                                        zahtev1 = bf.Deserialize(ms) as KlijentModel;
+                                    }
+
+                                    if (EPPoIDKlijenta.ContainsKey(zahtev1.IDKlijenta))
+                                    {
+                                        //prekinuti komunikaciju sa klijentom -> poslati poruku obrazlozenja
+                                        //u klijentu provjeriti da li je odbijeno -> npr PREKID KONEKCIJE da li sadrzi poruka odgovora
+                                        // prekid konekcije: vec postoji klijent sa istim id
+                                    }
+                                    //else sve ostalo
+
+                                    //server pronalazi najbolje vozilo
+                                    TaksiVoziloModel najbolji = NadjiNajblizeVozilo(aktivnaVozila, zahtev1.pocetnaTacka);
+
+                                    if (najbolji == null)
+                                    {
+                                        string odgovorKlijentu1 = $"Nema dostupnih vozila u ovom trenutku";
+                                        byte[] bufferOdg1 = Encoding.UTF8.GetBytes(odgovorKlijentu1);
+                                        serverSocketUDP.SendTo(bufferOdg1, klijentEPUDP);
+                                        continue;
+                                    }
+
+                                    //klijent uspostavio komunikaciju -> saljemo zadatak najblizem vozilu, saljemo odgovor klijentu
+                                    ZadatakModel zadatak = new ZadatakModel
+                                    {
+                                        ID = zadaci.Count() + 1,
+                                        pozicijaKlijenta = zahtev1.pocetnaTacka,
+                                        zeljenaPozicija = zahtev1.krajnjaTacka,
+                                        IDKlijenta = zahtev1.IDKlijenta,
+                                        IDVozila = najbolji.Id,
+                                        PredjenaRazdaljina = IzracunajRazdaljinu(zahtev1.pocetnaTacka, new Koordinata(najbolji.koordinataX, najbolji.koordinataY))
+                                    };
+                                    byte[] bufferZadatak = new byte[1024];
+
+                                    zadaci[najbolji.Id] = zadatak;
+                                    zadatak.StatusZadatka = StatusZadatka.Aktivan;
+
+                                    //slanje zadatka vozilu
+                                    using (MemoryStream ms = new MemoryStream())
+                                    {
+                                        BinaryFormatter bf = new BinaryFormatter();
+                                        bf.Serialize(ms, zadatak);
+                                        bufferZadatak = ms.ToArray();
+
+                                        try
+                                        {
+                                            Socket voziloSocket = socketPoIdVozila[najbolji.Id];
+                                            IPEndPoint voziloEPTCP = voziloSocket.RemoteEndPoint as IPEndPoint;
+                                            int brBajta = voziloSocket.SendTo(bufferZadatak, 0, bufferZadatak.Length, SocketFlags.None, voziloEPTCP);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Console.WriteLine($"Greška pri slanju zadatka vozilu: {ex.Message}");
+                                        }
+                                    }
+
+                                    double brzina = 0.8;
+                                    double vreme = zadatak.PredjenaRazdaljina / brzina;
+                                    //slanje odgovora klijentu
+                                    string odgovorKlijentu = $"Vozilo {najbolji.Id} dolazi za priblizno {vreme} sekundi!";
+                                    byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
+                                    serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
+
+                                    //dodavanje klijenta u rijecnik za pracenje zadatka
+                                    brojacKorakaPoZadatku[najbolji.Id] = 0;
+                                    EPPoIDKlijenta[zahtev1.IDKlijenta] = klijentEPUDP;
+                                    VoziloKlijentID[najbolji.Id] = zahtev1.IDKlijenta;
+
+                                    //prikazujemo listu zadataka
+                                    Ispisi(aktivnaVozila, zadaci);
                                 }
-
-                                if (EPPoIDKlijenta.ContainsKey(zahtev1.IDKlijenta))
+                                catch (Exception ex)
                                 {
-                                    //prekinuti komunikaciju sa klijentom -> poslati poruku obrazlozenja
-                                    //u klijentu provjeriti da li je odbijeno -> npr PREKID KONEKCIJE da li sadrzi poruka odgovora
-                                    // prekid konekcije: vec postoji klijent sa istim id
+                                    Console.WriteLine($"Greška prilikom obrade zahteva klijenta: {ex.Message}");
                                 }
-                                //else sve ostalo
-
-                                //server pronalazi najbolje vozilo
-                                TaksiVoziloModel najbolji = NadjiNajblizeVozilo(aktivnaVozila, zahtev1.pocetnaTacka);
-
-                                if (najbolji == null)
-                                {
-                                    string odgovorKlijentu1 = $"Nema dostupnih vozila u ovom trenutku";
-                                    byte[] bufferOdg1 = Encoding.UTF8.GetBytes(odgovorKlijentu1);
-                                    serverSocketUDP.SendTo(bufferOdg1, klijentEPUDP);
-                                    continue;
-                                }
-
-                                //klijent uspostavio komunikaciju -> saljemo zadatak najblizem vozilu, saljemo odgovor klijentu
-                                ZadatakModel zadatak = new ZadatakModel
-                                {
-                                    ID = zadaci.Count() + 1,
-                                    pozicijaKlijenta = zahtev1.pocetnaTacka,
-                                    zeljenaPozicija = zahtev1.krajnjaTacka,
-                                    IDKlijenta = zahtev1.IDKlijenta,
-                                    IDVozila = najbolji.Id,
-                                    PredjenaRazdaljina = IzracunajRazdaljinu(zahtev1.pocetnaTacka, new Koordinata(najbolji.koordinataX, najbolji.koordinataY))
-                                };
-                                byte[] bufferZadatak = new byte[1024];
-
-                                zadaci[najbolji.Id] = zadatak;
-                                zadatak.StatusZadatka = StatusZadatka.Aktivan;
-
-                                //slanje zadatka vozilu
-                                using (MemoryStream ms = new MemoryStream())
-                                {
-                                    BinaryFormatter bf = new BinaryFormatter();
-                                    bf.Serialize(ms, zadatak);
-                                    bufferZadatak = ms.ToArray();
-
-                                    Socket voziloSocket = socketPoIdVozila[najbolji.Id];
-                                    IPEndPoint voziloEPTCP = voziloSocket.RemoteEndPoint as IPEndPoint;
-                                    int brBajta = voziloSocket.SendTo(bufferZadatak, 0, bufferZadatak.Length, SocketFlags.None, voziloEPTCP);
-                                }
-
-                                double brzina = 0.8;
-                                double vreme = zadatak.PredjenaRazdaljina / brzina;
-                                //slanje odgovora klijentu
-                                string odgovorKlijentu = $"Vozilo {najbolji.Id} dolazi za priblizno {vreme} sekundi!";
-                                byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
-                                serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
-
-                                //dodavanje klijenta u rijecnik za pracenje zadatka
-                                brojacKorakaPoZadatku[najbolji.Id] = 0;
-                                EPPoIDKlijenta[zahtev1.IDKlijenta] = klijentEPUDP;
-                                VoziloKlijentID[najbolji.Id] = zahtev1.IDKlijenta;
-
-                                //prikazujemo listu zadataka
-                                Ispisi(aktivnaVozila, zadaci);
-
                             }
 
                             if (socketsVozila.Contains(socket))
                             {
-                                int primljeniBajtoviVozilo = socket.Receive(bufferVozilo);
-                                using (MemoryStream ms = new MemoryStream(bufferVozilo, 0, primljeniBajtoviVozilo))
+                                try
                                 {
-                                    BinaryFormatter bf = new BinaryFormatter();
-                                    object obj = bf.Deserialize(ms);
-
-
-                                    if (obj is TaksiVoziloModel vozilo)
+                                    int primljeniBajtoviVozilo = socket.Receive(bufferVozilo);
+                                    using (MemoryStream ms = new MemoryStream(bufferVozilo, 0, primljeniBajtoviVozilo))
                                     {
-                                        if (aktivnaVozila.ContainsKey(vozilo.Id))
-                                        {
-                                            //PROVJERA DA LI POSTOJI VOZILO SA ISTIM ID 
-                                            /*
-                                            if (socketPoIdVozila.ContainsKey(vozilo.Id))
-                                            {
-                                                Socket stariSocket = socketPoIdVozila[vozilo.Id];
+                                        BinaryFormatter bf = new BinaryFormatter();
+                                        object obj = bf.Deserialize(ms);
 
-                                                if (stariSocket == socket)
+                                        if (obj is TaksiVoziloModel vozilo)
+                                        {
+                                            if (aktivnaVozila.ContainsKey(vozilo.Id))
+                                            {
+                                                //PROVJERA DA LI POSTOJI VOZILO SA ISTIM ID 
+                                                /*
+                                                if (socketPoIdVozila.ContainsKey(vozilo.Id))
                                                 {
-                                                    // Ovo je update od postojećeg vozila (isti socket)
-                                                    //sav kod ispod u ifu
+                                                    Socket stariSocket = socketPoIdVozila[vozilo.Id];
+
+                                                    if (stariSocket == socket)
+                                                    {
+                                                        // Ovo je update od postojećeg vozila (isti socket)
+                                                        //sav kod ispod u ifu
+                                                    }
+                                                    else
+                                                    {
+                                                        // Drugi socket za isto vozilo
+                                                        // trebalo bi da svaki prozor vozila = novo vozilo = novi socket za svako
+                                                        // zatvoriti taj socket
+                                                        // poslati poruku odbijenice koja se treba prihvatiti u vozilu
+                                                    }
                                                 }
                                                 else
                                                 {
-                                                    // Drugi socket za isto vozilo
-                                                    // trebalo bi da svaki prozor vozila = novo vozilo = novi socket za svako
-                                                    // zatvoriti taj socket
-                                                    // poslati poruku odbijenice koja se treba prihvatiti u vozilu
+                                                    // Novo vozilo
+                                                    // vec obradjeno dole
+                                                    socketPoIdVozila[vozilo.Id] = socket;
+                                                    aktivnaVozila[vozilo.Id] = vozilo;
+                                                }*/
+
+                                                var postojeci = aktivnaVozila[vozilo.Id];
+
+                                                // Ažuriraj samo stvari koje se menjaju
+                                                postojeci.koordinataX = vozilo.koordinataX;
+                                                postojeci.koordinataY = vozilo.koordinataY;
+                                                postojeci.Status = vozilo.Status;
+
+
+                                                var zadatak = zadaci[postojeci.Id];
+                                                if (postojeci.Status == StatusVozila.NaPutu)
+                                                {
+                                                    brojacKorakaPoZadatku[postojeci.Id]++;
+                                                    int udaljenost = IzracunajRazdaljinu(new Koordinata(postojeci.koordinataX, postojeci.koordinataY), zadatak.pozicijaKlijenta);
+
+                                                    if (brojacKorakaPoZadatku[postojeci.Id] % 4 == 0 && udaljenost > 2)
+                                                    {
+                                                        int idKlijenta = VoziloKlijentID[postojeci.Id];
+                                                        EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
+                                                        double vrijeme = udaljenost / 0.8;
+
+                                                        string odgovorKlijentu = $"Vozilo se priblizava... Dolazi na odrediste za {vrijeme} sekundi!";
+                                                        byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
+                                                        serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
+                                                    }
                                                 }
-                                            }
-                                            else
-                                            {
-                                                // Novo vozilo
-                                                // vec obradjeno dole
-                                                socketPoIdVozila[vozilo.Id] = socket;
-                                                aktivnaVozila[vozilo.Id] = vozilo;
-                                            }*/
-
-                                            var postojeci = aktivnaVozila[vozilo.Id];
-
-                                            // Ažuriraj samo stvari koje se menjaju
-                                            postojeci.koordinataX = vozilo.koordinataX;
-                                            postojeci.koordinataY = vozilo.koordinataY;
-                                            postojeci.Status = vozilo.Status;
-
-
-                                            var zadatak = zadaci[postojeci.Id];
-                                            if (postojeci.Status == StatusVozila.NaPutu)
-                                            {
-                                                brojacKorakaPoZadatku[postojeci.Id]++;
-                                                int udaljenost = IzracunajRazdaljinu(new Koordinata(postojeci.koordinataX, postojeci.koordinataY), zadatak.pozicijaKlijenta);
-
-                                                if (brojacKorakaPoZadatku[postojeci.Id] % 4  == 0 && udaljenost > 2)
+                                                if (zadatak.pozicijaKlijenta.X == postojeci.koordinataX && zadatak.pozicijaKlijenta.Y == postojeci.koordinataY && postojeci.Status != StatusVozila.UVoznji)
                                                 {
                                                     int idKlijenta = VoziloKlijentID[postojeci.Id];
                                                     EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
-                                                    double vrijeme = udaljenost / 0.8;
 
-                                                    string odgovorKlijentu = $"Vozilo se priblizava... Dolazi na odrediste za {vrijeme} sekundi!";
+                                                    string odgovorKlijentu = $"Vozilo se trenutno nalazi na vasoj poziciji!";
                                                     byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
                                                     serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
                                                 }
                                             }
-                                            if(zadatak.pozicijaKlijenta.X == postojeci.koordinataX && zadatak.pozicijaKlijenta.Y ==  postojeci.koordinataY && postojeci.Status != StatusVozila.UVoznji)
+                                            else
                                             {
-                                                int idKlijenta = VoziloKlijentID[postojeci.Id];
-                                                EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
-
-                                                string odgovorKlijentu = $"Vozilo se trenutno nalazi na vasoj poziciji!";
-                                                byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
-                                                serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
+                                                aktivnaVozila[vozilo.Id] = vozilo;
+                                                socketPoIdVozila[vozilo.Id] = socket;
                                             }
-                                        }
-                                        else
-                                        {
-                                            aktivnaVozila[vozilo.Id] = vozilo;
-                                            socketPoIdVozila[vozilo.Id] = socket;
-                                        }
-
-                                        Ispisi(aktivnaVozila, zadaci);
-                                    }
-
-                                    //zavrsetak voznje
-                                    else if (obj is StatusVoznje status)
-                                    {
-                                        if (aktivnaVozila.ContainsKey(status.IdVozila))
-                                        {
-                                            var v = aktivnaVozila[status.IdVozila];
-                                            v.Km += status.Km;
-                                            v.Zarada += status.CenaVoznje;
-                                            v.BrojMusterija++;
-
-                                            // Oznaci zadatak kao zavrsen
-                                            foreach (var z in zadaci.Values)
-                                            {
-                                                if (z.IDKlijenta == status.IdKlijenta && z.IDVozila == status.IdVozila)
-                                                {
-                                                    z.StatusZadatka = StatusZadatka.Zavrsen;
-                                                    break;
-                                                }
-                                            }
-
-                                            int idKlijenta = status.IdKlijenta;
-                                            EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
-
-                                            string odgovorKlijentu = $"Stigli ste na odrediste! Voznja je placena {status.CenaVoznje} RSD!";
-                                            byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
-                                            serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
 
                                             Ispisi(aktivnaVozila, zadaci);
                                         }
+
+                                        //zavrsetak voznje
+                                        else if (obj is StatusVoznje status)
+                                        {
+                                            if (aktivnaVozila.ContainsKey(status.IdVozila))
+                                            {
+                                                var v = aktivnaVozila[status.IdVozila];
+                                                v.Km += status.Km;
+                                                v.Zarada += status.CenaVoznje;
+                                                v.BrojMusterija++;
+
+                                                // Oznaci zadatak kao zavrsen
+                                                foreach (var z in zadaci.Values)
+                                                {
+                                                    if (z.IDKlijenta == status.IdKlijenta && z.IDVozila == status.IdVozila)
+                                                    {
+                                                        z.StatusZadatka = StatusZadatka.Zavrsen;
+                                                        break;
+                                                    }
+                                                }
+
+                                                int idKlijenta = status.IdKlijenta;
+                                                EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
+
+                                                string odgovorKlijentu = $"Stigli ste na odrediste! Voznja je placena {status.CenaVoznje} RSD!";
+                                                byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
+                                                serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
+
+                                                Ispisi(aktivnaVozila, zadaci);
+                                            }
+                                        }
                                     }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"Greška prilikom obrade poruke vozila: {ex.Message}");
                                 }
                             }
                         }
