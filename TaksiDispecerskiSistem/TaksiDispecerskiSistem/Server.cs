@@ -224,15 +224,12 @@ namespace Server
                                         {
                                             if (aktivnaVozila.ContainsKey(vozilo.Id))
                                             {
-                                               
-
                                                 var postojeci = aktivnaVozila[vozilo.Id];
 
                                                 // Ažuriraj samo stvari koje se menjaju
                                                 postojeci.koordinataX = vozilo.koordinataX;
                                                 postojeci.koordinataY = vozilo.koordinataY;
                                                 postojeci.Status = vozilo.Status;
-
 
                                                 var zadatak = zadaci.Values.FirstOrDefault(z => z.IDVozila == postojeci.Id && z.StatusZadatka == StatusZadatka.Aktivan);
                                                 if (postojeci.Status == StatusVozila.NaPutu)
