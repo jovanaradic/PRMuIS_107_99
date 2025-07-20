@@ -232,30 +232,34 @@ namespace Server
                                                 postojeci.Status = vozilo.Status;
 
                                                 var zadatak = zadaci.Values.FirstOrDefault(z => z.IDVozila == postojeci.Id && z.StatusZadatka == StatusZadatka.Aktivan);
-                                                if (postojeci.Status == StatusVozila.NaPutu)
+                                                if (zadatak != null)
                                                 {
-                                                    brojacKorakaPoZadatku[postojeci.Id]++;
-                                                    int udaljenost = IzracunajRazdaljinu(new Koordinata(postojeci.koordinataX, postojeci.koordinataY), zadatak.pozicijaKlijenta);
+                                                    if (postojeci.Status == StatusVozila.NaPutu)
+                                                    {
+                                                        brojacKorakaPoZadatku[postojeci.Id]++;
+                                                        int udaljenost = IzracunajRazdaljinu(new Koordinata(postojeci.koordinataX, postojeci.koordinataY), zadatak.pozicijaKlijenta);
 
-                                                    if (brojacKorakaPoZadatku[postojeci.Id] % 4 == 0 && udaljenost > 2)
+                                                        if (brojacKorakaPoZadatku[postojeci.Id] % 4 == 0 && udaljenost > 2)
+                                                        {
+                                                            int idKlijenta = VoziloKlijentID[postojeci.Id];
+                                                            EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
+                                                            double vrijeme = udaljenost / 0.8;
+
+                                                            string odgovorKlijentu = $"Vozilo se priblizava... Dolazi na odrediste za {vrijeme} sekundi!";
+                                                            byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
+                                                            serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
+                                                        }
+                                                    }
+
+                                                    if (zadatak.pozicijaKlijenta.X == postojeci.koordinataX && zadatak.pozicijaKlijenta.Y == postojeci.koordinataY && postojeci.Status != StatusVozila.UVoznji)
                                                     {
                                                         int idKlijenta = VoziloKlijentID[postojeci.Id];
                                                         EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
-                                                        double vrijeme = udaljenost / 0.8;
 
-                                                        string odgovorKlijentu = $"Vozilo se priblizava... Dolazi na odrediste za {vrijeme} sekundi!";
+                                                        string odgovorKlijentu = $"Vozilo se trenutno nalazi na vasoj poziciji!";
                                                         byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
                                                         serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
                                                     }
-                                                }
-                                                if (zadatak.pozicijaKlijenta.X == postojeci.koordinataX && zadatak.pozicijaKlijenta.Y == postojeci.koordinataY && postojeci.Status != StatusVozila.UVoznji)
-                                                {
-                                                    int idKlijenta = VoziloKlijentID[postojeci.Id];
-                                                    EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
-
-                                                    string odgovorKlijentu = $"Vozilo se trenutno nalazi na vasoj poziciji!";
-                                                    byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
-                                                    serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
                                                 }
                                             }
                                             else

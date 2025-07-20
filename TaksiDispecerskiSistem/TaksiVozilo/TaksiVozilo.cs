@@ -130,7 +130,9 @@ namespace TaksiVozilo
                 catch (SocketException ex)
                 {
                     Console.WriteLine($"Doslo je do greske tokom slanja:\n{ex}");
+                    break;
                 }
+               
             }
 
             Console.WriteLine("Vozilo zavrsava sa radom");
