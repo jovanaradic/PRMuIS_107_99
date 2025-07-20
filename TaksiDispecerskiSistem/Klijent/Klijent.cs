@@ -28,10 +28,12 @@ namespace Klijent
                 Console.WriteLine("GREŠKA: ID mora biti pozitivan ceo broj. Pokušajte ponovo.");
             }
 
+            //KREIRANJE UDP SKCKETA
+            //udp je brzi i jednostavniji a on nema stalnu vezu sa serverom pa nije bitna pouzdanost
             Socket clientSocketUDP = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             IPEndPoint serverEP = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 50001);
 
-            EndPoint posiljaocEP = new IPEndPoint(IPAddress.Any, 0);
+            EndPoint posiljaocEP = new IPEndPoint(IPAddress.Any, 0); //adresa za primanje odgovora
 
             while (true)
             {
@@ -101,11 +103,12 @@ namespace Klijent
                     krajnjaTacka = krajnja
                 };
 
-                byte[] bufferZahtev = new byte[1024];
+                byte[] bufferZahtev = new byte[1024]; //za slanje podataka
 
                 try
                 {
                     //slanje zahteva serveru
+                    //salje bajtove serveeu preko udp
                     using (MemoryStream ms = new MemoryStream())
                     {
                         BinaryFormatter bf = new BinaryFormatter();
@@ -117,7 +120,9 @@ namespace Klijent
                     byte[] bufferOdgovorServera = new byte[1024];
                     byte[] bufferUpdateServera = new byte[1024];
 
-                    if (clientSocketUDP.Poll(4000 * 1000, SelectMode.SelectRead))
+                    //cekanje odgovora servera
+
+                    if (clientSocketUDP.Poll(4000 * 1000, SelectMode.SelectRead)) //ceka do 4 sekunde da server odgovori
                     {
                         int brBajtaOdg = clientSocketUDP.ReceiveFrom(bufferOdgovorServera, ref posiljaocEP);
 
