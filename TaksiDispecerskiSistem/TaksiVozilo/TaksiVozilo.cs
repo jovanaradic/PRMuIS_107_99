@@ -164,7 +164,8 @@ namespace TaksiVozilo
                 byte[] buffer = new byte[1024];
                 using (MemoryStream ms = new MemoryStream())
                 {
-                    BinaryFormatter bf = new BinaryFormatter();
+                    B693
+                        inaryFormatter bf = new BinaryFormatter();
                     bf.Serialize(ms, vozilo);
                     buffer = ms.ToArray();
                     socket.Send(buffer);
