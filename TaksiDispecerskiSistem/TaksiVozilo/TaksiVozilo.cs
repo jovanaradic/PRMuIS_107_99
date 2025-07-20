@@ -98,6 +98,10 @@ namespace TaksiVozilo
                         PosaljiVozilo(clientSocketTCP, serverEP, vozilo);
                         SimulirajKretanje(vozilo, zadatak.zeljenaPozicija, clientSocketTCP, serverEP);
 
+                        vozilo.Status = StatusVozila.Slobodno;
+                        //kako bi se u serveru promijenilo stanje na slobodno
+                        PosaljiVozilo(clientSocketTCP, serverEP, vozilo);
+
                         StatusVoznje status = new StatusVoznje
                         {
                             IdKlijenta = zadatak.IDKlijenta,
@@ -115,10 +119,6 @@ namespace TaksiVozilo
                             buffer = ms.ToArray();
                             clientSocketTCP.Send(buffer);
                         }
-
-                        vozilo.Status = StatusVozila.Slobodno;
-                        //kako bi se u serveru promijenilo stanje na slobodno
-                        PosaljiVozilo(clientSocketTCP, serverEP, vozilo);
                     }
                     else
                     {
