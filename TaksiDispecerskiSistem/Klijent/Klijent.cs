@@ -132,7 +132,7 @@ namespace Klijent
                         Console.WriteLine($"   {odgovorServera}");
                         Console.WriteLine("---------------------------------------------------------------------");
 
-                        if (!odgovorServera.Contains("Nema"))
+                        if (!odgovorServera.Contains("Nema") && !odgovorServera.Contains("odbijen"))
                         {
                             Console.WriteLine("Update servera:");
                             //klijent ocekuje update od servera

@@ -42,6 +42,7 @@ namespace Server
             Dictionary<int, TaksiVoziloModel> aktivnaVozila = new Dictionary<int, TaksiVoziloModel>();
             Dictionary<int, Socket> socketPoIdVozila = new Dictionary<int, Socket>();
             Dictionary<int, ZadatakModel> zadaci = new Dictionary<int, ZadatakModel>();
+            int idZadatkaBrojac = 0;
             //pracenje koraka za obavjestavanje klijenta
             Dictionary<int, int> brojacKorakaPoZadatku = new Dictionary<int, int>();
             Dictionary<int, EndPoint> EPPoIDKlijenta = new Dictionary<int, EndPoint>();
@@ -107,13 +108,16 @@ namespace Server
                                         zahtev1 = bf.Deserialize(ms) as KlijentModel;
                                     }
 
-                                    if (EPPoIDKlijenta.ContainsKey(zahtev1.IDKlijenta))
+                                    //ako klijent sa istim ID vec ima aktivan zadatak
+                                    bool klijentImaZadatak = zadaci.Values.Any(z => z.IDKlijenta == zahtev1.IDKlijenta && z.StatusZadatka == StatusZadatka.Aktivan);
+
+                                    if (klijentImaZadatak)
                                     {
-                                        //prekinuti komunikaciju sa klijentom -> poslati poruku obrazlozenja
-                                        //u klijentu provjeriti da li je odbijeno -> npr PREKID KONEKCIJE da li sadrzi poruka odgovora
-                                        // prekid konekcije: vec postoji klijent sa istim id
+                                        string poruka = $"Zahtev odbijen: Klijent sa ID {zahtev1.IDKlijenta} već ima aktivnu vožnju.";
+                                        byte[] bufferOdbijeno = Encoding.UTF8.GetBytes(poruka);
+                                        serverSocketUDP.SendTo(bufferOdbijeno, klijentEPUDP);
+                                        continue;
                                     }
-                                    //else sve ostalo
 
                                     //server pronalazi najbolje vozilo
                                     TaksiVoziloModel najbolji = NadjiNajblizeVozilo(aktivnaVozila, zahtev1.pocetnaTacka);
@@ -129,7 +133,7 @@ namespace Server
                                     //klijent uspostavio komunikaciju -> saljemo zadatak najblizem vozilu, saljemo odgovor klijentu
                                     ZadatakModel zadatak = new ZadatakModel
                                     {
-                                        ID = zadaci.Count() + 1,
+                                        ID = idZadatkaBrojac,
                                         pozicijaKlijenta = zahtev1.pocetnaTacka,
                                         zeljenaPozicija = zahtev1.krajnjaTacka,
                                         IDKlijenta = zahtev1.IDKlijenta,
@@ -138,7 +142,7 @@ namespace Server
                                     };
                                     byte[] bufferZadatak = new byte[1024];
 
-                                    zadaci[najbolji.Id] = zadatak;
+                                    zadaci[idZadatkaBrojac] = zadatak;
                                     zadatak.StatusZadatka = StatusZadatka.Aktivan;
 
                                     //slanje zadatka vozilu
@@ -172,6 +176,9 @@ namespace Server
                                     EPPoIDKlijenta[zahtev1.IDKlijenta] = klijentEPUDP;
                                     VoziloKlijentID[najbolji.Id] = zahtev1.IDKlijenta;
 
+                                    //za sledeci zadatak
+                                    idZadatkaBrojac++;
+
                                     //prikazujemo listu zadataka
                                     Ispisi(aktivnaVozila, zadaci);
                                 }
@@ -186,6 +193,28 @@ namespace Server
                                 try
                                 {
                                     int primljeniBajtoviVozilo = socket.Receive(bufferVozilo);
+                                    if (primljeniBajtoviVozilo == 0)
+                                    {
+                                        int idVozilaZaBrisanje = -1;
+                                        foreach (var par in socketPoIdVozila)
+                                        {
+                                            if (par.Value == socket)
+                                            {
+                                                idVozilaZaBrisanje = par.Key;
+                                                break;
+                                            }
+                                        }
+                                        if (idVozilaZaBrisanje != -1)
+                                        {
+                                            aktivnaVozila.Remove(idVozilaZaBrisanje);
+                                            socketPoIdVozila.Remove(idVozilaZaBrisanje);
+                                        }
+                                        socketsVozila.Remove(socket);
+                                        socket.Close();
+
+                                        Ispisi(aktivnaVozila, zadaci);
+                                        continue;
+                                    }
                                     using (MemoryStream ms = new MemoryStream(bufferVozilo, 0, primljeniBajtoviVozilo))
                                     {
                                         BinaryFormatter bf = new BinaryFormatter();
@@ -195,32 +224,7 @@ namespace Server
                                         {
                                             if (aktivnaVozila.ContainsKey(vozilo.Id))
                                             {
-                                                //PROVJERA DA LI POSTOJI VOZILO SA ISTIM ID 
-                                                /*
-                                                if (socketPoIdVozila.ContainsKey(vozilo.Id))
-                                                {
-                                                    Socket stariSocket = socketPoIdVozila[vozilo.Id];
-
-                                                    if (stariSocket == socket)
-                                                    {
-                                                        // Ovo je update od postojećeg vozila (isti socket)
-                                                        //sav kod ispod u ifu
-                                                    }
-                                                    else
-                                                    {
-                                                        // Drugi socket za isto vozilo
-                                                        // trebalo bi da svaki prozor vozila = novo vozilo = novi socket za svako
-                                                        // zatvoriti taj socket
-                                                        // poslati poruku odbijenice koja se treba prihvatiti u vozilu
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    // Novo vozilo
-                                                    // vec obradjeno dole
-                                                    socketPoIdVozila[vozilo.Id] = socket;
-                                                    aktivnaVozila[vozilo.Id] = vozilo;
-                                                }*/
+                                               
 
                                                 var postojeci = aktivnaVozila[vozilo.Id];
 
@@ -230,7 +234,7 @@ namespace Server
                                                 postojeci.Status = vozilo.Status;
 
 
-                                                var zadatak = zadaci[postojeci.Id];
+                                                var zadatak = zadaci.Values.FirstOrDefault(z => z.IDVozila == postojeci.Id && z.StatusZadatka == StatusZadatka.Aktivan);
                                                 if (postojeci.Status == StatusVozila.NaPutu)
                                                 {
                                                     brojacKorakaPoZadatku[postojeci.Id]++;
@@ -279,7 +283,7 @@ namespace Server
                                                 // Oznaci zadatak kao zavrsen
                                                 foreach (var z in zadaci.Values)
                                                 {
-                                                    if (z.IDKlijenta == status.IdKlijenta && z.IDVozila == status.IdVozila)
+                                                    if (z.IDKlijenta == status.IdKlijenta && z.IDVozila == status.IdVozila && z.StatusZadatka == StatusZadatka.Aktivan)
                                                     {
                                                         z.StatusZadatka = StatusZadatka.Zavrsen;
                                                         break;
@@ -301,6 +305,25 @@ namespace Server
                                 catch (Exception ex)
                                 {
                                     Console.WriteLine($"Greška prilikom obrade poruke vozila: {ex.Message}");
+                                    //vozilo prisilno zatvorilo konekciju
+                                    int idZaBrisanje = -1;
+                                    foreach (var par in socketPoIdVozila)
+                                    {
+                                        if (par.Value == socket)
+                                        {
+                                            idZaBrisanje = par.Key;
+                                            break;
+                                        }
+                                    }
+                                    if (idZaBrisanje != -1)
+                                    {
+                                        socketPoIdVozila.Remove(idZaBrisanje);
+                                        aktivnaVozila.Remove(idZaBrisanje);
+                                    }
+                                    socketsVozila.Remove(socket);
+                                    socket.Close();
+                                    Console.WriteLine("Vozilo se isključilo (greška).");
+                                    Ispisi(aktivnaVozila, zadaci);
                                 }
                             }
                         }
