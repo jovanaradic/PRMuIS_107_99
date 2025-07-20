@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace ZajednickeKlase.Enumeracije
 {
+    
     public enum StatusVozila
     {
         Slobodno,
