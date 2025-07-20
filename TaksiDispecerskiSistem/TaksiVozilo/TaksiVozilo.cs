@@ -28,7 +28,7 @@ namespace TaksiVozilo
                     break;
                 Console.WriteLine("GREŠKA: ID mora biti pozitivan ceo broj. Pokušajte ponovo.");
             }
-
+            //vozilo dobija nasumicnu pocetnu poziciju na mapi
             Random r = new Random();
             Koordinata lokacija = new Koordinata(r.Next(0, 19), r.Next(0, 19));
 
