@@ -7,6 +7,7 @@ using System.Net;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
+using ZajednickeKlase;
 using ZajednickeKlase.Modeli;
 using ZajednickeKlase.Enumeracije;
 using System.Threading;
@@ -22,15 +23,15 @@ namespace TaksiVozilo
             int id;
             while (true)
             {
-               
+
                 string input = Console.ReadLine();
                 if (int.TryParse(input, out id) && id >= 0)
                     break;
                 Console.WriteLine("GREŠKA: ID mora biti pozitivan ceo broj. Pokušajte ponovo.");
             }
-            //vozilo dobija nasumicnu pocetnu poziciju na mapi
+            //vozilo dobija nasumičnu pocetnu poziciju na mapi - unutar granica lavirinta
             Random r = new Random();
-            Koordinata lokacija = new Koordinata(r.Next(0, 19), r.Next(0, 19));
+            Koordinata lokacija = new Koordinata(r.Next(0, Konfiguracija.SirinaLavirinta), r.Next(0, Konfiguracija.VisinaLavirinta));
 
             Socket clientSocketTCP = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint serverEP = new IPEndPoint(IPAddress.Loopback, 50000);
@@ -39,9 +40,9 @@ namespace TaksiVozilo
             {
                 clientSocketTCP.Connect(serverEP);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Console.WriteLine($"GRESKA: nije moguce povezati se na server: {ex}");
+                Console.WriteLine("GREŠKA: nije moguce povezati se na server: " + ex);
                 Console.WriteLine("\nPritisnite Enter za izlaz...");
                 Console.ReadLine();
                 return;
@@ -67,13 +68,13 @@ namespace TaksiVozilo
             }
 
             Console.Clear();
-            Console.WriteLine($"VOZILO {id} povezano i spremno.\n");
+            Console.WriteLine("VOZILO " + id + " povezano i spremno.\n");
 
             while (true)
             {
                 try
                 {
-                    byte[] bufferZadatak = new byte[1024];
+                    byte[] bufferZadatak = new byte[16384];
                     int velicinaZadatka = clientSocketTCP.Receive(bufferZadatak);
 
                     ZadatakModel zadatak = null;
@@ -88,26 +89,27 @@ namespace TaksiVozilo
                     if (zadatak != null)
                     {
 
-                        Console.WriteLine($"Nova voznja → klijent {zadatak.IDKlijenta}, {zadatak.PredjenaRazdaljina:F1} km");
+                        Console.WriteLine("Nova voznja -> klijent " + zadatak.IDKlijenta + ", " + zadatak.PredjenaRazdaljina.ToString("F1") + " polja (ruta: " + zadatak.IzabraniAlgoritam + ")");
 
                         vozilo.Status = StatusVozila.NaPutu;
                         PosaljiVozilo(clientSocketTCP, serverEP, vozilo);
-                        SimulirajKretanje(vozilo, zadatak.pozicijaKlijenta, clientSocketTCP, serverEP);
+                        PratiPutanju(vozilo, zadatak.PutanjaDoKlijenta, clientSocketTCP, serverEP);
 
                         vozilo.Status = StatusVozila.UVoznji;
                         PosaljiVozilo(clientSocketTCP, serverEP, vozilo);
-                        SimulirajKretanje(vozilo, zadatak.zeljenaPozicija, clientSocketTCP, serverEP);
+                        PratiPutanju(vozilo, zadatak.PutanjaDoOdredista, clientSocketTCP, serverEP);
 
                         vozilo.Status = StatusVozila.Slobodno;
-                        //kako bi se u serveru promijenilo stanje na slobodno
                         PosaljiVozilo(clientSocketTCP, serverEP, vozilo);
+
+                        Thread.Sleep(100);
 
                         StatusVoznje status = new StatusVoznje
                         {
                             IdKlijenta = zadatak.IDKlijenta,
                             IdVozila = id,
                             Km = zadatak.PredjenaRazdaljina,
-                            CenaVoznje = zadatak.PredjenaRazdaljina * 80
+                            CenaVoznje = zadatak.PredjenaRazdaljina * Konfiguracija.CenaPoPolju
                         };
                         //salje se status voznje pri zavrsetku
                         byte[] buffer = new byte[1024];
@@ -129,10 +131,10 @@ namespace TaksiVozilo
 
                 catch (SocketException ex)
                 {
-                    Console.WriteLine($"Doslo je do greske tokom slanja:\n{ex}");
+                    Console.WriteLine("Doslo je do greske tokom slanja:\n" + ex);
                     break;
                 }
-               
+
             }
 
             Console.WriteLine("Vozilo zavrsava sa radom");
@@ -140,22 +142,22 @@ namespace TaksiVozilo
             clientSocketTCP.Close();
         }
 
-        private static void SimulirajKretanje(TaksiVoziloModel vozilo, Koordinata cilj, Socket socket, EndPoint serverEP)
+        // vozilo prolazi kroz listu koordinata (putanju) koju je dispecer izracunao
+        private static void PratiPutanju(TaksiVoziloModel vozilo, List<Koordinata> putanja, Socket socket, EndPoint serverEP)
         {
-            while (vozilo.koordinataX != cilj.X || vozilo.koordinataY != cilj.Y)
+            if (putanja == null || putanja.Count == 0)
+                return;
+
+            int pocetniIndeks = 0;
+            if (putanja[0].X == vozilo.koordinataX && putanja[0].Y == vozilo.koordinataY)
+                pocetniIndeks = 1;
+
+            for (int i = pocetniIndeks; i < putanja.Count; i++)
             {
-                if (vozilo.koordinataX < cilj.X)
-                    vozilo.koordinataX++;
-                else if (vozilo.koordinataX > cilj.X)
-                    vozilo.koordinataX--;
-
-                if (vozilo.koordinataY < cilj.Y)
-                    vozilo.koordinataY++;
-                else if (vozilo.koordinataY > cilj.Y)
-                    vozilo.koordinataY--;
-
+                vozilo.koordinataX = putanja[i].X;
+                vozilo.koordinataY = putanja[i].Y;
                 PosaljiVozilo(socket, serverEP, vozilo);
-                Thread.Sleep(800); // pauza da se kretanje vidi (0.8 sekunde po koraku)
+                Thread.Sleep(Konfiguracija.PauzaKretanjaMs);
             }
         }
 
@@ -172,9 +174,9 @@ namespace TaksiVozilo
                     socket.Send(buffer);
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Console.WriteLine($"Doslo je do greske prilikom slanja: {ex}");
+                Console.WriteLine("Došlo je do greske prilikom slanja: " + ex);
             }
         }
     }

@@ -7,9 +7,12 @@ using System.Net;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
+using ZajednickeKlase;
 using ZajednickeKlase.Modeli;
 using ZajednickeKlase.Enumeracije;
-using System.Diagnostics.Eventing.Reader;
+using ZajednickeKlase.Lavirint;
+using ZajednickeKlase.AlgoritmiPretrage;
+using ZajednickeKlase.Evidencija;
 
 namespace Server
 {
@@ -17,7 +20,13 @@ namespace Server
     {
         static void Main(string[] args)
         {
-            Console.Title = "SERVER – Taksi Dispečerski Sistem";
+            Console.Title = "SERVER - Taksi Dispečerski Sistem";
+
+            Lavirint lavirint = GeneratorLavirinta.Generisi(
+                Konfiguracija.SirinaLavirinta,
+                Konfiguracija.VisinaLavirinta,
+                Konfiguracija.VerovatnocaDodatnihProlaza,
+                Konfiguracija.SemeLavirinta);
 
             //TCP - vozilo
             Socket serverSocketTCP = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -35,8 +44,7 @@ namespace Server
             serverSocketUDP.Bind(serverEPUDP);
             serverSocketUDP.Blocking = false;
 
-
-            byte[] bufferVozilo = new byte[1024];
+            byte[] bufferVozilo = new byte[4096];
             byte[] bufferKlijent = new byte[1024];
 
             Dictionary<int, TaksiVoziloModel> aktivnaVozila = new Dictionary<int, TaksiVoziloModel>();
@@ -54,7 +62,7 @@ namespace Server
             try
             {
                 //na pocetku ispisujemo
-                Ispisi(aktivnaVozila, zadaci);
+                Ispisi(lavirint, aktivnaVozila, zadaci);
                 while (true)
                 {
                     List<Socket> checkRead = new List<Socket>();
@@ -91,7 +99,7 @@ namespace Server
                                 }
                                 catch (SocketException ex)
                                 {
-                                    Console.WriteLine($"Greška prilikom prihvatanja konekcije vozila: {ex.Message}");
+                                    Console.WriteLine("Greška prilikom prihvatanja konekcije vozila: " + ex.Message);
                                 }
                             }
                             //klijent salje ZAHTEV
@@ -113,22 +121,64 @@ namespace Server
 
                                     if (klijentImaZadatak)
                                     {
-                                        string poruka = $"Zahtev odbijen: Klijent sa ID {zahtev1.IDKlijenta} već ima aktivnu vožnju.";
+                                        string poruka = "Zahtev odbijen: Klijent sa ID " + zahtev1.IDKlijenta + " vec ima aktivnu voznju.";
                                         byte[] bufferOdbijeno = Encoding.UTF8.GetBytes(poruka);
                                         serverSocketUDP.SendTo(bufferOdbijeno, klijentEPUDP);
                                         continue;
                                     }
 
-                                    //server pronalazi najbolje vozilo
-                                    TaksiVoziloModel najbolji = NadjiNajblizeVozilo(aktivnaVozila, zahtev1.pocetnaTacka);
+                                    //provera da su koordinate unutar granica lavirinta
+                                    if (!lavirint.UGranicama(zahtev1.pocetnaTacka.X, zahtev1.pocetnaTacka.Y) ||
+                                        !lavirint.UGranicama(zahtev1.krajnjaTacka.X, zahtev1.krajnjaTacka.Y))
+                                    {
+                                        string odgovorVanGranica = "Zahtev odbijen: koordinate moraju biti u opsegu 0-" + (Konfiguracija.SirinaLavirinta - 1) + " (X) i 0-" + (Konfiguracija.VisinaLavirinta - 1) + " (Y).";
+                                        byte[] bufferVanGranica = Encoding.UTF8.GetBytes(odgovorVanGranica);
+                                        serverSocketUDP.SendTo(bufferVanGranica, klijentEPUDP);
+                                        continue;
+                                    }
+
+                                    //server pronalazi najbolje (najblize) slobodno vozilo
+                                    TaksiVoziloModel najbolji = NadjiNajblizeVozilo(lavirint, aktivnaVozila, zahtev1.pocetnaTacka);
 
                                     if (najbolji == null)
                                     {
-                                        string odgovorKlijentu1 = $"Nema dostupnih vozila u ovom trenutku";
+                                        string odgovorKlijentu1 = "Nema dostupnih vozila u ovom trenutku";
                                         byte[] bufferOdg1 = Encoding.UTF8.GetBytes(odgovorKlijentu1);
                                         serverSocketUDP.SendTo(bufferOdg1, klijentEPUDP);
                                         continue;
                                     }
+
+                                    //--- LOGIKA PRETRAGE NA DISPECERSKOJ STANICI ---
+                                    //za odabrano vozilo racunamo optimalnu putanju kroz lavirint u dva segmenta:
+                                    //  1) od trenutne pozicije vozila do klijenta
+                                    //  2) od pozicije klijenta do zeljenog odredista
+                                    //Za svaki segment isprobavamo tri algoritma (BFS, Dijkstra, A*) i biramo najbolji
+                                    //(najkraca putanja, a kod izjednacenja - najbrze pronadjena), a rezultate poredjenja
+                                    //belezimo radi kasnije analize.
+                                    Koordinata pozicijaVozila = new Koordinata(najbolji.koordinataX, najbolji.koordinataY);
+
+                                    List<RezultatPretrage> rezultatiDoKlijenta;
+                                    RezultatPretrage optimalanDoKlijenta = PronalazacPuta.NadjiOptimalnuPutanju(
+                                        lavirint, pozicijaVozila, zahtev1.pocetnaTacka, out rezultatiDoKlijenta);
+
+                                    List<RezultatPretrage> rezultatiDoOdredista;
+                                    RezultatPretrage optimalanDoOdredista = PronalazacPuta.NadjiOptimalnuPutanju(
+                                        lavirint, zahtev1.pocetnaTacka, zahtev1.krajnjaTacka, out rezultatiDoOdredista);
+
+                                    if (optimalanDoKlijenta == null || optimalanDoOdredista == null)
+                                    {
+                                        string odgovorNemaPuta = "Zahtev odbijen: nije moguće pronacžći putanju kroz lavirint.";
+                                        byte[] bufferNemaPuta = Encoding.UTF8.GetBytes(odgovorNemaPuta);
+                                        serverSocketUDP.SendTo(bufferNemaPuta, klijentEPUDP);
+                                        continue;
+                                    }
+
+                                    int brojAktivnihZadatakaSad = zadaci.Values.Count(z => z.StatusZadatka == StatusZadatka.Aktivan);
+
+                                    EvidencijaPodataka.SacuvajPoredjenjeAlgoritama(idZadatkaBrojac, "Vozilo->Klijent", rezultatiDoKlijenta, optimalanDoKlijenta.Algoritam,
+                                        Konfiguracija.SirinaLavirinta, Konfiguracija.VisinaLavirinta, aktivnaVozila.Count, brojAktivnihZadatakaSad);
+                                    EvidencijaPodataka.SacuvajPoredjenjeAlgoritama(idZadatkaBrojac, "Klijent->Odrediste", rezultatiDoOdredista, optimalanDoOdredista.Algoritam,
+                                        Konfiguracija.SirinaLavirinta, Konfiguracija.VisinaLavirinta, aktivnaVozila.Count, brojAktivnihZadatakaSad);
 
                                     //klijent uspostavio komunikaciju -> saljemo zadatak najblizem vozilu, saljemo odgovor klijentu
                                     ZadatakModel zadatak = new ZadatakModel
@@ -138,14 +188,18 @@ namespace Server
                                         zeljenaPozicija = zahtev1.krajnjaTacka,
                                         IDKlijenta = zahtev1.IDKlijenta,
                                         IDVozila = najbolji.Id,
-                                        PredjenaRazdaljina = IzracunajRazdaljinu(zahtev1.pocetnaTacka, new Koordinata(najbolji.koordinataX, najbolji.koordinataY))
+                                        //naplacuje se stvarna duzina voznje (klijent -> odrediste)
+                                        PredjenaRazdaljina = optimalanDoOdredista.DuzinaPuta,
+                                        PutanjaDoKlijenta = optimalanDoKlijenta.Putanja,
+                                        PutanjaDoOdredista = optimalanDoOdredista.Putanja,
+                                        IzabraniAlgoritam = optimalanDoKlijenta.Algoritam + " / " + optimalanDoOdredista.Algoritam
                                     };
-                                    byte[] bufferZadatak = new byte[1024];
+                                    byte[] bufferZadatak;
 
                                     zadaci[idZadatkaBrojac] = zadatak;
                                     zadatak.StatusZadatka = StatusZadatka.Aktivan;
 
-                                    //slanje zadatka vozilu
+                                    //slanje zadatka (ukljucujuci celu putanju - niz koordinata) vozilu
                                     using (MemoryStream ms = new MemoryStream())
                                     {
                                         BinaryFormatter bf = new BinaryFormatter();
@@ -160,14 +214,13 @@ namespace Server
                                         }
                                         catch (Exception ex)
                                         {
-                                            Console.WriteLine($"Greška pri slanju zadatka vozilu: {ex.Message}");
+                                            Console.WriteLine("Greška pri slanju zadatka vozilu: " + ex.Message);
                                         }
                                     }
 
-                                    double brzina = 0.8;
-                                    double vreme = zadatak.PredjenaRazdaljina / brzina;
+                                    double vreme = optimalanDoKlijenta.DuzinaPuta * (Konfiguracija.PauzaKretanjaMs / 1000.0);
                                     //slanje odgovora klijentu
-                                    string odgovorKlijentu = $"Vozilo {najbolji.Id} dolazi za priblizno {vreme} sekundi!";
+                                    string odgovorKlijentu = "Vozilo " + najbolji.Id + " dolazi za priblizno " + vreme.ToString("0.0") + " sekundi! (Ruta: " + optimalanDoKlijenta.Algoritam + ", " + optimalanDoKlijenta.DuzinaPuta + " polja)";
                                     byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
                                     serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
 
@@ -180,11 +233,11 @@ namespace Server
                                     idZadatkaBrojac++;
 
                                     //prikazujemo listu zadataka
-                                    Ispisi(aktivnaVozila, zadaci);
+                                    Ispisi(lavirint, aktivnaVozila, zadaci);
                                 }
                                 catch (Exception ex)
                                 {
-                                    Console.WriteLine($"Greška prilikom obrade zahteva klijenta: {ex.Message}");
+                                    Console.WriteLine("Greška prilikom obrade zahteva klijenta: " + ex.Message);
                                 }
                             }
 
@@ -212,7 +265,7 @@ namespace Server
                                         socketsVozila.Remove(socket);
                                         socket.Close();
 
-                                        Ispisi(aktivnaVozila, zadaci);
+                                        Ispisi(lavirint, aktivnaVozila, zadaci);
                                         continue;
                                     }
                                     using (MemoryStream ms = new MemoryStream(bufferVozilo, 0, primljeniBajtoviVozilo))
@@ -220,8 +273,9 @@ namespace Server
                                         BinaryFormatter bf = new BinaryFormatter();
                                         object obj = bf.Deserialize(ms);
 
-                                        if (obj is TaksiVoziloModel vozilo)
+                                        if (obj is TaksiVoziloModel)
                                         {
+                                            TaksiVoziloModel vozilo = (TaksiVoziloModel)obj;
                                             if (aktivnaVozila.ContainsKey(vozilo.Id))
                                             {
                                                 var postojeci = aktivnaVozila[vozilo.Id];
@@ -237,15 +291,20 @@ namespace Server
                                                     if (postojeci.Status == StatusVozila.NaPutu)
                                                     {
                                                         brojacKorakaPoZadatku[postojeci.Id]++;
-                                                        int udaljenost = IzracunajRazdaljinu(new Koordinata(postojeci.koordinataX, postojeci.koordinataY), zadatak.pozicijaKlijenta);
 
-                                                        if (brojacKorakaPoZadatku[postojeci.Id] % 4 == 0 && udaljenost > 2)
+                                                        int indeksTrenutneCelije = zadatak.PutanjaDoKlijenta.FindIndex(
+                                                            k => k.X == postojeci.koordinataX && k.Y == postojeci.koordinataY);
+                                                        int preostaliKoraci = indeksTrenutneCelije >= 0
+                                                            ? zadatak.PutanjaDoKlijenta.Count - 1 - indeksTrenutneCelije
+                                                            : 0;
+
+                                                        if (brojacKorakaPoZadatku[postojeci.Id] % 4 == 0 && preostaliKoraci > 2)
                                                         {
                                                             int idKlijenta = VoziloKlijentID[postojeci.Id];
                                                             EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
-                                                            double vrijeme = udaljenost / 0.8;
+                                                            double vrijeme = preostaliKoraci * (Konfiguracija.PauzaKretanjaMs / 1000.0);
 
-                                                            string odgovorKlijentu = $"Vozilo se priblizava... Dolazi na odrediste za {vrijeme} sekundi!";
+                                                            string odgovorKlijentu = "Vozilo se priblizava... Dolazi na odrediste za " + vrijeme.ToString("0.0") + " sekundi!";
                                                             byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
                                                             serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
                                                         }
@@ -256,7 +315,7 @@ namespace Server
                                                         int idKlijenta = VoziloKlijentID[postojeci.Id];
                                                         EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
 
-                                                        string odgovorKlijentu = $"Vozilo se trenutno nalazi na vasoj poziciji!";
+                                                        string odgovorKlijentu = "Vozilo se trenutno nalazi na vasoj poziciji!";
                                                         byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
                                                         serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
                                                     }
@@ -268,12 +327,13 @@ namespace Server
                                                 socketPoIdVozila[vozilo.Id] = socket;
                                             }
 
-                                            Ispisi(aktivnaVozila, zadaci);
+                                            Ispisi(lavirint, aktivnaVozila, zadaci);
                                         }
 
                                         //zavrsetak voznje
-                                        else if (obj is StatusVoznje status)
+                                        else if (obj is StatusVoznje)
                                         {
+                                            StatusVoznje status = (StatusVoznje)obj;
                                             if (aktivnaVozila.ContainsKey(status.IdVozila))
                                             {
                                                 var v = aktivnaVozila[status.IdVozila];
@@ -282,30 +342,46 @@ namespace Server
                                                 v.BrojMusterija++;
 
                                                 // Oznaci zadatak kao zavrsen
+                                                string algoritamZadatka = null;
+                                                int idZadatkaZavrsenog = -1;
                                                 foreach (var z in zadaci.Values)
                                                 {
                                                     if (z.IDKlijenta == status.IdKlijenta && z.IDVozila == status.IdVozila && z.StatusZadatka == StatusZadatka.Aktivan)
                                                     {
                                                         z.StatusZadatka = StatusZadatka.Zavrsen;
+                                                        algoritamZadatka = z.IzabraniAlgoritam;
+                                                        idZadatkaZavrsenog = z.ID;
                                                         break;
                                                     }
                                                 }
 
+                                                //evidentiramo zavrsenu voznju (CSV)
+                                                EvidencijaPodataka.SacuvajZavrsenuVoznju(new EvidencijaVoznje
+                                                {
+                                                    Vreme = DateTime.Now,
+                                                    IdZadatka = idZadatkaZavrsenog,
+                                                    IdKlijenta = status.IdKlijenta,
+                                                    IdVozila = status.IdVozila,
+                                                    Algoritam = algoritamZadatka,
+                                                    PredjenaRazdaljina = status.Km,
+                                                    CenaVoznje = status.CenaVoznje
+                                                });
+
                                                 int idKlijenta = status.IdKlijenta;
                                                 EndPoint klijentEPUDP = EPPoIDKlijenta[idKlijenta];
 
-                                                string odgovorKlijentu = $"Stigli ste na odrediste! Voznja je placena {status.CenaVoznje} RSD!";
+                                                string odgovorKlijentu = "Stigli ste na odrediste! Voznja je placena " + status.CenaVoznje + " RSD!";
                                                 byte[] bufferOdg = Encoding.UTF8.GetBytes(odgovorKlijentu);
                                                 serverSocketUDP.SendTo(bufferOdg, klijentEPUDP);
 
-                                                Ispisi(aktivnaVozila, zadaci);
+                                                Ispisi(lavirint, aktivnaVozila, zadaci);
                                             }
                                         }
                                     }
                                 }
                                 catch (Exception ex)
                                 {
-                                    Console.WriteLine($"Greška prilikom obrade poruke vozila: {ex.Message}");
+                                    Console.WriteLine("Greška prilikom obrade poruke vozila: " + ex.Message);
                                     //vozilo prisilno zatvorilo konekciju
                                     int idZaBrisanje = -1;
                                     foreach (var par in socketPoIdVozila)
@@ -324,7 +400,7 @@ namespace Server
                                     socketsVozila.Remove(socket);
                                     socket.Close();
                                     Console.WriteLine("Vozilo se isključilo (greška).");
-                                    Ispisi(aktivnaVozila, zadaci);
+                                    Ispisi(lavirint, aktivnaVozila, zadaci);
                                 }
                             }
                         }
@@ -334,7 +410,7 @@ namespace Server
             }
             catch (SocketException ex)
             {
-                Console.WriteLine($"Doslo je do greske {ex}");
+                Console.WriteLine("Došlo je do greške " + ex);
             }
 
             Console.WriteLine("Server zavrsava sa radom");
@@ -347,93 +423,134 @@ namespace Server
             Console.ReadKey();
         }
 
-        private static void Ispisi(Dictionary<int, TaksiVoziloModel> vozila, Dictionary<int, ZadatakModel> zadaci)
+        private static void Ispisi(Lavirint lavirint, Dictionary<int, TaksiVoziloModel> vozila, Dictionary<int, ZadatakModel> zadaci)
         {
             Console.Clear();
-            Console.WriteLine($"=== TAKSI DISPEČERSKI SISTEM – {DateTime.Now:HH:mm:ss} ===\n");
+            Console.WriteLine("=== TAKSI DISPECERSKI SISTEM - " + DateTime.Now.ToString("HH:mm:ss") + " ===\n");
 
             Console.WriteLine("VOZILA");
             Console.WriteLine("ID  Status      Lokacija    Km       Zarada      Musterija");
             foreach (var v in vozila.Values.OrderBy(v => v.Id))
             {
-                Console.WriteLine($"{v.Id,-3} {v.Status,-10}  ({v.koordinataX,2},{v.koordinataY,2})  {v.Km,6:0.0}  {v.Zarada,8:0.00} RSD  {v.BrojMusterija,3}");
+                Console.WriteLine(v.Id.ToString().PadRight(3) + " " + v.Status.ToString().PadRight(10) + "  (" + v.koordinataX.ToString().PadLeft(2) + "," + v.koordinataY.ToString().PadLeft(2) + ")  " + v.Km.ToString("0.0").PadLeft(6) + "  " + v.Zarada.ToString("0.00").PadLeft(8) + " RSD  " + v.BrojMusterija.ToString().PadLeft(3));
             }
 
             Console.WriteLine();
             Console.WriteLine("ZADACI");
-            Console.WriteLine("ID Zadatka  ID Klijenta  ID Vozila  Status");
+            Console.WriteLine("ID Zadatka  ID Klijenta  ID Vozila  Algoritam            Status");
             foreach (var z in zadaci.Values.OrderBy(z => z.ID))
             {
-                Console.WriteLine($"{z.ID,-10}  {z.IDKlijenta,-11}  {z.IDVozila,-9}  {z.StatusZadatka}");
+                Console.WriteLine(z.ID.ToString().PadRight(10) + "  " + z.IDKlijenta.ToString().PadRight(11) + "  " + z.IDVozila.ToString().PadRight(9) + "  " + (z.IzabraniAlgoritam ?? "").PadRight(20) + "  " + z.StatusZadatka);
             }
 
-            Console.WriteLine("\nMAPA (20x20):\n");
-            string[,] mapa = new string[20, 20];
-            for (int y = 0; y < 20; y++)
-                for (int x = 0; x < 20; x++)
-                    mapa[x, y] = ".";
+            Console.WriteLine("\nMAPA - LAVIRINT (" + lavirint.Sirina + "x" + lavirint.Visina + "):\n");
+
+            //oznake koje se ispisuju u odgovarajucim celijama lavirinta
+            Dictionary<string, string> oznake = new Dictionary<string, string>();
 
             foreach (var v in vozila.Values)
-                if (v.koordinataX < 20 && v.koordinataY < 20)
-                    mapa[v.koordinataX, v.koordinataY] = "V" + v.Id.ToString();
+                if (lavirint.UGranicama(v.koordinataX, v.koordinataY))
+                    oznake[v.koordinataX + "_" + v.koordinataY] = "V" + v.Id;
 
-            //prikaz klijent i vozilo+klijent
+            //prikaz klijenta i vozila+klijenta
             foreach (var z in zadaci.Values.Where(z => z.StatusZadatka == StatusZadatka.Aktivan))
             {
                 var vozilo = vozila.ContainsKey(z.IDVozila) ? vozila[z.IDVozila] : null;
+                if (vozilo == null) continue;
 
-                if (vozilo != null)
+                bool voziloNaPozicijiKlijenta = vozilo.koordinataX == z.pozicijaKlijenta.X && vozilo.koordinataY == z.pozicijaKlijenta.Y;
+
+                // klijent ceka
+                if (!voziloNaPozicijiKlijenta && lavirint.UGranicama(z.pozicijaKlijenta.X, z.pozicijaKlijenta.Y) && vozilo.Status != StatusVozila.UVoznji)
                 {
-                    bool voziloNaPozicijiKlijenta = vozilo.koordinataX == z.pozicijaKlijenta.X && vozilo.koordinataY == z.pozicijaKlijenta.Y;
+                    oznake[z.pozicijaKlijenta.X + "_" + z.pozicijaKlijenta.Y] = "K" + z.IDKlijenta;
+                }
 
-                    // klijent ceka
-                    if (!voziloNaPozicijiKlijenta && z.pozicijaKlijenta.X < 20 && z.pozicijaKlijenta.Y < 20 && !vozilo.Status.Equals(StatusVozila.UVoznji))
-                    {
-                        mapa[z.pozicijaKlijenta.X, z.pozicijaKlijenta.Y] = "K" + z.IDKlijenta;
-                    }
+                //(V+K) samo ako je pokupio klijenta ili su na istoj poziciji
+                if (vozilo.Status == StatusVozila.UVoznji || voziloNaPozicijiKlijenta)
+                {
+                    if (lavirint.UGranicama(vozilo.koordinataX, vozilo.koordinataY))
+                        oznake[vozilo.koordinataX + "_" + vozilo.koordinataY] = "V" + vozilo.Id + "K";
+                }
+            }
 
-                    //(V+K) samo ako je pokupio klijenta ili su na istoj poziciji
-                    if (vozilo.Status == StatusVozila.UVoznji || voziloNaPozicijiKlijenta)
+            IscrtajLavirint(lavirint, oznake);
+        }
+
+        private static void IscrtajLavirint(Lavirint lavirint, Dictionary<string, string> oznake)
+        {
+            const int sirinaCelije = 4;
+            int mrezaSirina = 2 * lavirint.Sirina + 1;
+            int mrezaVisina = 2 * lavirint.Visina + 1;
+
+            for (int my = 0; my < mrezaVisina; my++)
+            {
+                StringBuilder red = new StringBuilder();
+
+                if (my % 2 == 0)
+                {
+                    // red horizontalnih zidova i coskova
+                    for (int mx = 0; mx < mrezaSirina; mx++)
                     {
-                        if (vozilo.koordinataX < 20 && vozilo.koordinataY < 20)
+                        if (mx % 2 == 0)
                         {
-                            mapa[vozilo.koordinataX, vozilo.koordinataY] = $"V{vozilo.Id}+K";
+                            red.Append("+");
+                        }
+                        else
+                        {
+                            bool zid = lavirint.Zidovi[mx, my];
+                            red.Append(zid ? new string('-', sirinaCelije) : new string(' ', sirinaCelije));
                         }
                     }
                 }
-            }
-            for (int y = 0; y < 20; y++)
-            {
-                for (int x = 0; x < 20; x++)
-                    Console.Write($"{mapa[x, y],-6}");
-                Console.WriteLine();
+                else
+                {
+                    for (int mx = 0; mx < mrezaSirina; mx++)
+                    {
+                        if (mx % 2 == 0)
+                        {
+                            bool zid = lavirint.Zidovi[mx, my];
+                            red.Append(zid ? "|" : " ");
+                        }
+                        else
+                        {
+                            int cx = (mx - 1) / 2;
+                            int cy = (my - 1) / 2;
+                            string kljuc = cx + "_" + cy;
+                            string sadrzaj;
+                            if (oznake.TryGetValue(kljuc, out sadrzaj))
+                                red.Append((sadrzaj.Length > sirinaCelije ? sadrzaj.Substring(0, sirinaCelije) : sadrzaj).PadRight(sirinaCelije));
+                            else
+                                red.Append(new string(' ', sirinaCelije));
+                        }
+                    }
+                }
+
+                Console.WriteLine(red.ToString());
             }
         }
 
-        private static TaksiVoziloModel NadjiNajblizeVozilo(Dictionary<int, TaksiVoziloModel> vozila, Koordinata klijent)
+        private static TaksiVoziloModel NadjiNajblizeVozilo(Lavirint lavirint, Dictionary<int, TaksiVoziloModel> vozila, Koordinata klijent)
         {
             TaksiVoziloModel najblizi = null;
-            double minUdaljenost = double.MaxValue;
+            int minDuzinaPuta = int.MaxValue;
 
             foreach (var vozilo in vozila.Values)
             {
                 if (vozilo.Status == StatusVozila.Slobodno)
                 {
-                    double dist = Math.Sqrt(Math.Pow(vozilo.koordinataX - klijent.X, 2) + Math.Pow(vozilo.koordinataY - klijent.Y, 2));
-                    if (dist < minUdaljenost)
+                    Koordinata pozicijaVozila = new Koordinata(vozilo.koordinataX, vozilo.koordinataY);
+                    RezultatPretrage rezultat = BFS.Pretrazi(lavirint, pozicijaVozila, klijent);
+
+                    if (rezultat.Pronadjeno && rezultat.DuzinaPuta < minDuzinaPuta)
                     {
-                        minUdaljenost = dist;
+                        minDuzinaPuta = rezultat.DuzinaPuta;
                         najblizi = vozilo;
                     }
                 }
             }
 
             return najblizi;
-        }
-
-        public static int IzracunajRazdaljinu(Koordinata a, Koordinata b)
-        {
-            return Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
         }
     }
 }

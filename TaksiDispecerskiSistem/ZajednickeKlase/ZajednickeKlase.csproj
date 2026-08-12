@@ -41,9 +41,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AlgoritmniPretrage\AStar.cs" />
+    <Compile Include="AlgoritmniPretrage\BFS.cs" />
+    <Compile Include="AlgoritmniPretrage\Dijkstra.cs" />
+    <Compile Include="AlgoritmniPretrage\PronalazacPuta.cs" />
+    <Compile Include="AlgoritmniPretrage\RezultatPretrage.cs" />
     <Compile Include="Enumeracije\EnumVozilo.cs" />
     <Compile Include="Enumeracije\EnumZadatak.cs" />
     <Compile Include="Enumeracije\EnumZahtev.cs" />
+    <Compile Include="Konfiguracija.cs" />
+    <Compile Include="Lavirint\GeneratorLavirinta.cs" />
+    <Compile Include="Lavirint\Lavirint.cs" />
+    <Compile Include="Evidencija\EvidencijaPodataka.cs" />
     <Compile Include="Modeli\KlijentModel.cs" />
     <Compile Include="Modeli\Koordinata.cs" />
     <Compile Include="Modeli\StatusVoznje.cs" />

@@ -8,7 +8,6 @@ using ZajednickeKlase.Enumeracije;
 namespace ZajednickeKlase.Modeli
 {
     [Serializable]
-
     public class ZadatakModel
     {
         public int ID { get; set; }
@@ -17,10 +16,16 @@ namespace ZajednickeKlase.Modeli
 
         public Koordinata pozicijaKlijenta { get; set; }
 
-        public Koordinata zeljenaPozicija {  get; set; }
+        public Koordinata zeljenaPozicija { get; set; }
 
         public StatusZadatka StatusZadatka { get; set; } = StatusZadatka.Aktivan;
 
         public double PredjenaRazdaljina { get; set; }
+
+        public List<Koordinata> PutanjaDoKlijenta { get; set; } = new List<Koordinata>();
+
+        public List<Koordinata> PutanjaDoOdredista { get; set; } = new List<Koordinata>();
+
+        public string IzabraniAlgoritam { get; set; }
     }
 }

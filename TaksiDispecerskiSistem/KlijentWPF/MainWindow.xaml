@@ -1,0 +1,193 @@
+﻿<Window x:Class="KlijentWPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Klijent" Height="720" Width="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="#F4F5F7"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="AkcentnoDugme" TargetType="Button">
+            <Setter Property="Background" Value="#2F6FED"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2559C7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#C7CDD8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SekundarnoDugme" TargetType="Button" BasedOn="{StaticResource AkcentnoDugme}">
+            <Setter Property="Background" Value="#E4E7EC"/>
+            <Setter Property="Foreground" Value="#33384A"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#D3D8E1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CelijaDugme" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#D9DCE3"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="1.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#EEF2FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="UnosPolje" TargetType="TextBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderBrush" Value="#D9DCE3"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="White" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ZnackaStatusa" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Background" Value="#E4E7EC"/>
+        </Style>
+
+        <Style x:Key="Kartica" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="BorderBrush" Value="#E4E7EC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="Naslov" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#1F2430"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource Kartica}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="ID klijenta" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#5B6270"/>
+                <TextBox x:Name="TxtIdKlijenta" Width="50" Style="{StaticResource UnosPolje}" Text="1"/>
+                <Button x:Name="BtnPoveziSe" Content="Prijavi se" Style="{StaticResource AkcentnoDugme}" Margin="12,0,0,0" Click="BtnPoveziSe_Click"/>
+                <Border x:Name="ZnackaKonekcije" Style="{StaticResource ZnackaStatusa}" Margin="14,0,0,0">
+                    <TextBlock x:Name="TxtStatusKonekcije" Text="Neprijavljen" FontWeight="SemiBold" Foreground="#5B6270" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="14"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="14"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Style="{StaticResource Kartica}">
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel Margin="0,0,28,0">
+                            <TextBlock Text="POLAZAK" FontSize="10" Foreground="#8A90A0"/>
+                            <TextBlock x:Name="TxtPolazak" Text="nije izabrano" FontSize="15" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,28,0">
+                            <TextBlock Text="ODREDIŠTE" FontSize="10" Foreground="#8A90A0"/>
+                            <TextBlock x:Name="TxtOdrediste" Text="nije izabrano" FontSize="15" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <Button x:Name="BtnPosaljiZahtev" Content="Pošalji zahtev" Style="{StaticResource AkcentnoDugme}" IsEnabled="False" VerticalAlignment="Center" Click="BtnPosaljiZahtev_Click"/>
+                        <Button x:Name="BtnResetujOdabir" Content="Resetuj odabir" Style="{StaticResource SekundarnoDugme}" Margin="10,0,0,0" VerticalAlignment="Center" Click="BtnResetujOdabir_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="2" Style="{StaticResource Kartica}">
+                    <DockPanel>
+                        <TextBlock Text="Izaberi polazak i odredište" Style="{StaticResource Naslov}" DockPanel.Dock="Top"/>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                            <UniformGrid x:Name="MrezaCelija"/>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Column="2" Style="{StaticResource Kartica}">
+                <DockPanel>
+                    <TextBlock Text="Status" Style="{StaticResource Naslov}" DockPanel.Dock="Top"/>
+                    <ListBox x:Name="ListaStatusa" BorderThickness="0" Background="Transparent"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0,6"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="13" Foreground="#33384A"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

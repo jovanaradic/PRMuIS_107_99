@@ -1,0 +1,162 @@
+﻿<Window x:Class="TaksiVoziloWPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Vozilo" Height="640" Width="620"
+        WindowStartupLocation="CenterScreen"
+        Background="#F4F5F7"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="AkcentnoDugme" TargetType="Button">
+            <Setter Property="Background" Value="#2F6FED"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2559C7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#C7CDD8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="UnosPolje" TargetType="TextBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderBrush" Value="#D9DCE3"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="White" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ZnackaStatusa" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Background" Value="#E4E7EC"/>
+        </Style>
+
+        <Style x:Key="Kartica" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="BorderBrush" Value="#E4E7EC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="Naslov" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#1F2430"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- Jedna "metrika" kartica (naslov + velika vrednost) -->
+        <Style x:Key="MetrikaLabela" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="#8A90A0"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+        </Style>
+        <Style x:Key="MetrikaVrednost" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#1F2430"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Gornja traka -->
+        <Border Grid.Row="0" Style="{StaticResource Kartica}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="ID vozila" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#5B6270"/>
+                <TextBox x:Name="TxtIdVozila" Width="50" Style="{StaticResource UnosPolje}" Text="1"/>
+                <Button x:Name="BtnPoveziSe" Content="Poveži se" Style="{StaticResource AkcentnoDugme}" Margin="12,0,0,0" Click="BtnPoveziSe_Click"/>
+                <Border x:Name="ZnackaKonekcije" Style="{StaticResource ZnackaStatusa}" Margin="14,0,10,0">
+                    <TextBlock x:Name="TxtStatusKonekcije" Text="Nepovezano" FontWeight="SemiBold" Foreground="#5B6270" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
+                </Border>
+                <Border x:Name="ZnackaVozila" Style="{StaticResource ZnackaStatusa}" Background="#E4E7EC">
+                    <TextBlock x:Name="TxtStatusVozila" Text="—" FontWeight="SemiBold" Foreground="#5B6270" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Metrike u redu -->
+        <UniformGrid Grid.Row="2" Columns="4" Rows="1">
+            <Border Style="{StaticResource Kartica}" Margin="0,0,7,0">
+                <StackPanel>
+                    <TextBlock Text="POZICIJA" Style="{StaticResource MetrikaLabela}"/>
+                    <TextBlock x:Name="TxtPozicija" Text="—" Style="{StaticResource MetrikaVrednost}"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Kartica}" Margin="7,0,7,0">
+                <StackPanel>
+                    <TextBlock Text="PREĐENO" Style="{StaticResource MetrikaLabela}"/>
+                    <TextBlock x:Name="TxtPredjeno" Text="0.0" Style="{StaticResource MetrikaVrednost}"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Kartica}" Margin="7,0,7,0">
+                <StackPanel>
+                    <TextBlock Text="ZARADA" Style="{StaticResource MetrikaLabela}"/>
+                    <TextBlock x:Name="TxtZarada" Text="0 RSD" Style="{StaticResource MetrikaVrednost}"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Kartica}" Margin="7,0,0,0">
+                <StackPanel>
+                    <TextBlock Text="MUŠTERIJE" Style="{StaticResource MetrikaLabela}"/>
+                    <TextBlock x:Name="TxtMusterije" Text="0" Style="{StaticResource MetrikaVrednost}"/>
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <!-- Log kretanja - popunjava ostatak -->
+        <Border Grid.Row="4" Style="{StaticResource Kartica}">
+            <DockPanel>
+                <TextBlock Text="Kretanje" Style="{StaticResource Naslov}" DockPanel.Dock="Top"/>
+                <ListBox x:Name="ListaKretanja" BorderThickness="0" Background="Transparent"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0,5"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="13" Foreground="#1F2430"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,165 @@
+﻿<Window x:Class="ServerWPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ServerWPF"
+        Title="Server" Height="820" Width="1300"
+        WindowStartupLocation="CenterScreen"
+        Background="#F4F5F7"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <local:StatusBojaConverter x:Key="StatusBoja"/>
+
+        <Style x:Key="Kartica" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="BorderBrush" Value="#E4E7EC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="Naslov" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#1F2430"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="ZnackaStatusa" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Background" Value="#D9F3E3"/>
+        </Style>
+
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="GridLinesVisibility" Value="None"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="RowBackground" Value="Transparent"/>
+            <Setter Property="AlternatingRowBackground" Value="#F8F9FB"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Gornja traka -->
+        <Border Grid.Row="0" Style="{StaticResource Kartica}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="TxtNaslov" Text="Dispečerski server" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
+                <Border Style="{StaticResource ZnackaStatusa}" Margin="14,0,0,0">
+                    <TextBlock x:Name="TxtStatusServera" Text="Pokrenut" FontWeight="SemiBold" Foreground="#146C3B" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Glavni deo -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="14"/>
+                <ColumnDefinition Width="420"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Mapa lavirinta -->
+            <Border Grid.Column="0" Style="{StaticResource Kartica}">
+                <DockPanel>
+                    <TextBlock Text="Mapa" Style="{StaticResource Naslov}" DockPanel.Dock="Top"/>
+                    <Viewbox Stretch="Uniform">
+                        <Canvas x:Name="MapaLavirinta" Background="White"/>
+                    </Viewbox>
+                </DockPanel>
+            </Border>
+
+            <!-- Desna kolona: Vozila, Zadaci, Log -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="12"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="12"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Style="{StaticResource Kartica}" MaxHeight="220">
+                    <DockPanel>
+                        <TextBlock Text="Vozila" Style="{StaticResource Naslov}" DockPanel.Dock="Top"/>
+                        <DataGrid x:Name="TabelaVozila" MaxHeight="180">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="35"/>
+                                <DataGridTemplateColumn Header="Status" Width="80">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding Status, Converter={StaticResource StatusBoja}}"
+                                                    CornerRadius="10" Padding="8,3" HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding Status}" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Lokacija" Binding="{Binding Lokacija}" Width="70"/>
+                                <DataGridTextColumn Header="Km" Binding="{Binding Km}" Width="50"/>
+                                <DataGridTextColumn Header="Zarada" Binding="{Binding Zarada}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Row="2" Style="{StaticResource Kartica}" MaxHeight="220">
+                    <DockPanel>
+                        <TextBlock Text="Zadaci" Style="{StaticResource Naslov}" DockPanel.Dock="Top"/>
+                        <DataGrid x:Name="TabelaZadataka" MaxHeight="180">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding ID}" Width="35"/>
+                                <DataGridTextColumn Header="Klijent" Binding="{Binding IDKlijenta}" Width="55"/>
+                                <DataGridTextColumn Header="Vozilo" Binding="{Binding IDVozila}" Width="55"/>
+                                <DataGridTextColumn Header="Algoritam" Binding="{Binding IzabraniAlgoritam}" Width="*"/>
+                                <DataGridTemplateColumn Header="Status" Width="80">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding StatusZadatka, Converter={StaticResource StatusBoja}}"
+                                                    CornerRadius="10" Padding="8,3" HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding StatusZadatka}" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Row="4" Style="{StaticResource Kartica}">
+                    <DockPanel>
+                        <TextBlock Text="Log" Style="{StaticResource Naslov}" DockPanel.Dock="Top"/>
+                        <ListBox x:Name="ListaLoga" BorderThickness="0" Background="Transparent"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="0,4"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" Foreground="#33384A"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
